@@ -1,0 +1,47 @@
+.path-mod-groupassign .groupassign-group-card {
+    border-left: .35rem solid #0f6cbf;
+}
+
+.path-mod-groupassign .groupassign-group-card.is-current {
+    border-left-color: #198754;
+    background: #f2fbf6;
+}
+
+.path-mod-groupassign .groupassign-summary-number {
+    font-size: 1.6rem;
+    font-weight: 700;
+}
+
+.path-mod-groupassign .groupassign-summary-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.path-mod-groupassign .groupassign-summary-card {
+    min-height: 6rem;
+}
+
+.path-mod-groupassign .groupassign-dashboard-section {
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+    background: #fff;
+}
+
+.path-mod-groupassign .groupassign-dashboard-summary {
+    cursor: pointer;
+    font-size: 1.15rem;
+    font-weight: 700;
+    padding: 1rem 1.25rem;
+}
+
+.path-mod-groupassign .groupassign-dashboard-body {
+    border-top: 1px solid #dee2e6;
+    padding: 1.25rem;
+}
+
+.path-mod-groupassign .groupassign-row-actions summary {
+    cursor: pointer;
+    list-style: none;
+    font-weight: 700;
+}
