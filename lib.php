@@ -22,7 +22,6 @@ function groupassign_supports($feature) {
         case FEATURE_GRADE_HAS_GRADE:
         case FEATURE_ADVANCED_GRADING:
         case FEATURE_COMPLETION_TRACKS_VIEWS:
-        case FEATURE_COMPLETION_HAS_RULES:
         case FEATURE_SHOW_DESCRIPTION:
             return true;
         case FEATURE_BACKUP_MOODLE2:
@@ -237,7 +236,6 @@ function groupassign_normalise_settings(stdClass $data): void {
     $data->peercomments = empty($data->peercomments) ? 0 : 1;
     $data->peeranonymous = empty($data->peeranonymous) ? 0 : 1;
     $data->peerstudentresponse = empty($data->peerstudentresponse) ? 0 : 1;
-    $data->completionreceivegrade = empty($data->completionreceivegrade) ? 0 : 1;
     $data->submissiononlinetext = empty($data->submissiononlinetext) ? 0 : 1;
     $data->submissionfile = empty($data->submissionfile) ? 0 : 1;
     $data->submissionfiletypes = trim((string)($data->submissionfiletypes ?? ''));
@@ -253,27 +251,6 @@ function groupassign_normalise_settings(stdClass $data): void {
     if (property_exists($data, 'submissiontypesgroup')) {
         unset($data->submissiontypesgroup);
     }
-}
-
-function groupassign_get_completion_state($course, $cm, $userid, $type): bool {
-    global $DB;
-
-    $groupassign = $DB->get_record('groupassign', ['id' => $cm->instance], 'id,completionreceivegrade', MUST_EXIST);
-    $result = $type;
-    if (!empty($groupassign->completionreceivegrade)) {
-        $itemid = $DB->get_field('grade_items', 'id', [
-            'itemmodule' => 'groupassign',
-            'iteminstance' => $groupassign->id,
-            'courseid' => $course->id,
-        ]);
-        $hasgrade = $DB->record_exists('grade_grades', [
-            'itemid' => $itemid ?: -1,
-            'userid' => $userid,
-        ]);
-        $result = $result && $hasgrade;
-    }
-
-    return $result;
 }
 
 function groupassign_extract_peercriteria(stdClass $data): array {
@@ -507,15 +484,5 @@ function groupassign_extend_settings_navigation(settings_navigation $settings, n
         action: new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id, 'action' => 'submissions']),
         type: navigation_node::TYPE_SETTING,
         key: 'mod_groupassign_submissions'
-    );
-    $navref->add(
-        text: get_string('advancedgrading', 'grading'),
-        action: new moodle_url('/grade/grading/manage.php', [
-            'contextid' => $settings->get_page()->context->id,
-            'component' => 'mod_groupassign',
-            'areaname' => 'submissions',
-        ]),
-        type: navigation_node::TYPE_SETTING,
-        key: 'mod_groupassign_advancedgrading'
     );
 }

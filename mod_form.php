@@ -242,15 +242,4 @@ class mod_groupassign_mod_form extends moodleform_mod {
         return $errors;
     }
 
-    public function add_completion_rules() {
-        $mform = $this->_form;
-        $mform->addElement('checkbox', 'completionreceivegrade',
-            '', get_string('completionreceivegrade', 'groupassign'));
-        $mform->addHelpButton('completionreceivegrade', 'completionreceivegrade', 'groupassign');
-        return ['completionreceivegrade'];
-    }
-
-    public function completion_rule_enabled($data) {
-        return !empty($data['completionreceivegrade']);
-    }
 }
