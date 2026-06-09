@@ -2,6 +2,24 @@
 
 `mod_groupassign` is an early Moodle activity prototype for group assignments that combine group formation, group submission, peer/self evaluation, and teacher-controlled grade adjustment in one activity.
 
+## Installation
+
+The Moodle component is `mod_groupassign`, so the folder inside Moodle must be `mod/groupassign`.
+
+Recommended developer install:
+
+```bash
+git clone https://github.com/AceMcCloud-Skybolt/moodle-mod_groupassignment.git /path/to/moodle/public/mod/groupassign
+```
+
+Do not install a raw GitHub source ZIP if Moodle expands it as `groupassignment` or `moodle-mod_groupassignment-main`; Moodle will treat that as `mod_groupassignment` and reject the plugin. For ZIP installs, build an installable package with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\build-package.ps1
+```
+
+That creates `dist/groupassign.zip` with the correct top-level folder.
+
 ## Current prototype slice
 
 - Appears in the Moodle activity picker as **Group assignment**.
