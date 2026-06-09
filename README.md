@@ -20,6 +20,12 @@ powershell -ExecutionPolicy Bypass -File .\tools\build-package.ps1
 
 That creates `dist/groupassign.zip` with the correct top-level folder.
 
+## Concept and requirements brief
+
+For a non-code handoff explaining why this activity is needed, what problems it solves, target users, core use cases, MVP requirements, future ideas, and developer review questions, see:
+
+[`docs/group-assignment-product-brief.md`](docs/group-assignment-product-brief.md)
+
 ## Current prototype slice
 
 - Appears in the Moodle activity picker as **Group assignment**.
