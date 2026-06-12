@@ -447,12 +447,46 @@ function groupassign_get_file_areas($course, $cm, $context) {
 }
 
 function groupassign_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, array $options = []) {
+    global $DB, $USER;
+
     if ($context->contextlevel !== CONTEXT_MODULE || $filearea !== 'submission') {
         return false;
     }
     require_login($course, true, $cm);
 
-    $itemid = array_shift($args);
+    $itemid = (int)array_shift($args);
+    $submission = $DB->get_record('groupassign_submissions', [
+        'id' => $itemid,
+        'groupassignid' => $cm->instance,
+    ]);
+    if (!$submission) {
+        return false;
+    }
+
+    $groupassign = $DB->get_record('groupassign', ['id' => $cm->instance], 'id,course,groupingid');
+    if (!$groupassign) {
+        return false;
+    }
+
+    $groupallowed = $DB->record_exists('groupassign_groups', [
+        'groupassignid' => $cm->instance,
+        'groupid' => $submission->groupid,
+    ]);
+    if (!$groupallowed && !empty($groupassign->groupingid)) {
+        $groups = groups_get_all_groups($groupassign->course, 0, $groupassign->groupingid, 'g.id');
+        $groupallowed = isset($groups[$submission->groupid]);
+    }
+    if (!$groupallowed) {
+        return false;
+    }
+
+    $canviewall = has_capability('mod/groupassign:grade', $context);
+    $isgroupmember = has_capability('mod/groupassign:join', $context)
+        && groups_is_member($submission->groupid, $USER->id);
+    if (!$canviewall && !$isgroupmember) {
+        return false;
+    }
+
     $filename = array_pop($args);
     $filepath = $args ? '/' . implode('/', $args) . '/' : '/';
 

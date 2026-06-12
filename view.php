@@ -1022,8 +1022,12 @@ if ($action !== 'view' && $action !== 'submissions' && $action !== 'grade' && $a
             redirect($PAGE->url, get_string('groupjoined', 'groupassign'), null, \core\output\notification::NOTIFY_SUCCESS);
         }
     } else if ($action === 'leave' && $groupid && $groupassign->allowstudentleave) {
-        groups_remove_member($groupid, $USER->id);
-        redirect($PAGE->url, get_string('groupleft', 'groupassign'), null, \core\output\notification::NOTIFY_SUCCESS);
+        $mygroups = groupassign_get_my_groups($groupassign, $USER->id);
+        if (isset($mygroups[$groupid])) {
+            groups_remove_member($groupid, $USER->id);
+            redirect($PAGE->url, get_string('groupleft', 'groupassign'), null, \core\output\notification::NOTIFY_SUCCESS);
+        }
+        redirect($PAGE->url, get_string('invalidgroupid', 'groupassign'), null, \core\output\notification::NOTIFY_ERROR);
     } else if ($action === 'create' && $groupassign->allowstudentcreate) {
         if (trim($groupname) !== '') {
             if (empty($groupassign->groupingid)) {
@@ -1052,9 +1056,9 @@ echo $OUTPUT->heading(format_string($groupassign->name));
 echo format_module_intro('groupassign', $groupassign, $cm->id);
 
 if ($canmanage || $cangrade) {
-    if ($action === 'submissions') {
+    if ($action === 'submissions' && $cangrade) {
         groupassign_render_submissions_view($groupassign, $cm, $context);
-    } else if ($action === 'grade') {
+    } else if ($action === 'grade' && $cangrade) {
         groupassign_render_grade_view($groupassign, $cm, $context, $groupid, $editoroptions);
     } else {
         groupassign_render_teacher_view($groupassign, $cm, $context);

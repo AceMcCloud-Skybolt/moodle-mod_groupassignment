@@ -196,6 +196,9 @@ class provider implements
             return;
         }
 
+        $submissionids = $DB->get_fieldset_select('groupassign_submissions', 'id',
+            'groupassignid = :groupassignid', ['groupassignid' => $cm->instance]);
+        self::delete_submission_files($context, $submissionids);
         $DB->delete_records('groupassign_submissions', ['groupassignid' => $cm->instance]);
         $DB->delete_records('groupassign_grades', ['groupassignid' => $cm->instance]);
         $DB->delete_records('groupassign_membergrades', ['groupassignid' => $cm->instance]);
@@ -219,6 +222,12 @@ class provider implements
                 continue;
             }
 
+            $submissionids = $DB->get_fieldset_select('groupassign_submissions', 'id',
+                'groupassignid = :groupassignid AND userid = :userid', [
+                    'groupassignid' => $cm->instance,
+                    'userid' => $userid,
+                ]);
+            self::delete_submission_files($context, $submissionids);
             $DB->delete_records('groupassign_submissions', ['groupassignid' => $cm->instance, 'userid' => $userid]);
             $DB->delete_records('groupassign_membergrades', ['groupassignid' => $cm->instance, 'userid' => $userid]);
             $DB->delete_records_select('groupassign_peerreviews',
@@ -242,16 +251,35 @@ class provider implements
             return;
         }
 
-        [$usersql, $params] = $DB->get_in_or_equal($userlist->get_userids(), SQL_PARAMS_NAMED);
+        $userids = $userlist->get_userids();
+        if (!$userids) {
+            return;
+        }
+
+        [$usersql, $params] = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED);
         $params['groupassignid'] = $cm->instance;
+        $submissionids = $DB->get_fieldset_select('groupassign_submissions', 'id',
+            "groupassignid = :groupassignid AND userid $usersql", $params);
+        self::delete_submission_files($context, $submissionids);
         $DB->delete_records_select('groupassign_submissions', "groupassignid = :groupassignid AND userid $usersql", $params);
         $DB->delete_records_select('groupassign_membergrades', "groupassignid = :groupassignid AND userid $usersql", $params);
 
-        [$reviewersql, $reviewerparams] = $DB->get_in_or_equal($userlist->get_userids(), SQL_PARAMS_NAMED, 'reviewer');
-        [$revieweesql, $revieweeparams] = $DB->get_in_or_equal($userlist->get_userids(), SQL_PARAMS_NAMED, 'reviewee');
+        [$reviewersql, $reviewerparams] = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED, 'reviewer');
+        [$revieweesql, $revieweeparams] = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED, 'reviewee');
         $reviewparams = ['groupassignid' => $cm->instance] + $reviewerparams + $revieweeparams;
         $DB->delete_records_select('groupassign_peerreviews',
             "groupassignid = :groupassignid AND (reviewerid $reviewersql OR revieweeid $revieweesql)", $reviewparams);
+    }
+
+    protected static function delete_submission_files(\context_module $context, array $submissionids): void {
+        if (!$submissionids) {
+            return;
+        }
+
+        $fs = get_file_storage();
+        foreach ($submissionids as $submissionid) {
+            $fs->delete_area_files($context->id, 'mod_groupassign', 'submission', $submissionid);
+        }
     }
 
     protected static function normalise_records(array $records): array {
