@@ -292,5 +292,15 @@ function xmldb_groupassign_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026061201, 'groupassign');
     }
 
+    if ($oldversion < 2026061202) {
+        $table = new xmldb_table('groupassign_peercriteria');
+        $field = new xmldb_field('archived', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'sortorder');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2026061202, 'groupassign');
+    }
+
     return true;
 }

@@ -298,10 +298,12 @@ function groupassign_peer_rating_options(string $ratingtype = 'fourlevel'): arra
 function groupassign_get_peercriteria($groupassign): array {
     global $DB;
 
-    $criteria = $DB->get_records('groupassign_peercriteria', ['groupassignid' => $groupassign->id], 'sortorder ASC');
+    $criteria = $DB->get_records('groupassign_peercriteria',
+        ['groupassignid' => $groupassign->id, 'archived' => 0], 'sortorder ASC');
     if (!$criteria) {
         groupassign_save_peercriteria($groupassign->id, groupassign_default_peercriteria());
-        $criteria = $DB->get_records('groupassign_peercriteria', ['groupassignid' => $groupassign->id], 'sortorder ASC');
+        $criteria = $DB->get_records('groupassign_peercriteria',
+            ['groupassignid' => $groupassign->id, 'archived' => 0], 'sortorder ASC');
     }
     return $criteria;
 }
@@ -420,7 +422,6 @@ function groupassign_render_dashboard_section(string $title, string $content, bo
 function groupassign_render_teacher_view($groupassign, $cm, $context): void {
     global $OUTPUT;
 
-    groupassign_sync_groups($groupassign);
     $groups = groupassign_get_groups($groupassign);
     $students = get_enrolled_users($context, 'mod/groupassign:join', 0, 'u.*', 'u.lastname, u.firstname');
     $studentswithoutgroup = 0;

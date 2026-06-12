@@ -20,11 +20,12 @@ function groupassign_supports($feature) {
         case FEATURE_GROUPS:
         case FEATURE_GROUPINGS:
         case FEATURE_GRADE_HAS_GRADE:
-        case FEATURE_ADVANCED_GRADING:
         case FEATURE_COMPLETION_TRACKS_VIEWS:
         case FEATURE_COMPLETION_HAS_RULES:
         case FEATURE_SHOW_DESCRIPTION:
             return true;
+        case FEATURE_ADVANCED_GRADING:
+            return false;
         case FEATURE_BACKUP_MOODLE2:
             return false;
         case FEATURE_MOD_PURPOSE:
@@ -319,6 +320,7 @@ function groupassign_save_activity_files(stdClass $groupassign, array $draftitem
 function groupassign_extract_peercriteria(stdClass $data): array {
     $criteria = [];
     if (!empty($data->peercriteria_title) && is_array($data->peercriteria_title)) {
+        $ids = $data->peercriteria_id ?? [];
         $titles = $data->peercriteria_title;
         $descriptions = $data->peercriteria_description ?? [];
         $ratingtypes = $data->peercriteria_ratingtype ?? [];
@@ -326,6 +328,7 @@ function groupassign_extract_peercriteria(stdClass $data): array {
             $title = trim((string)$title);
             if ($title !== '') {
                 $criteria[] = [
+                    'id' => (int)($ids[$index] ?? 0),
                     'title' => $title,
                     'description' => trim((string)($descriptions[$index] ?? '')),
                     'ratingtype' => trim((string)($ratingtypes[$index] ?? 'fourlevel')),
@@ -333,7 +336,8 @@ function groupassign_extract_peercriteria(stdClass $data): array {
             }
         }
     }
-    unset($data->peercriteria_title, $data->peercriteria_description, $data->peercriteria_ratingtype);
+    unset($data->peercriteria_id, $data->peercriteria_title, $data->peercriteria_description,
+        $data->peercriteria_ratingtype);
 
     return $criteria ?: groupassign_default_peercriteria();
 }
@@ -372,14 +376,27 @@ function groupassign_save_peercriteria(int $groupassignid, array $criteria): voi
     global $DB;
 
     $now = time();
-    $DB->delete_records('groupassign_peercriteria', ['groupassignid' => $groupassignid]);
+    $existing = $DB->get_records('groupassign_peercriteria', ['groupassignid' => $groupassignid], 'sortorder ASC');
+    $existingbyid = [];
+    $existingbysortorder = [];
+    foreach ($existing as $record) {
+        $existingbyid[(int)$record->id] = $record;
+        if (empty($record->archived)) {
+            $existingbysortorder[(int)$record->sortorder] = $record;
+        }
+    }
+
+    $validratingtypes = ['fourlevel', 'satisfactory', 'marks5'];
+    $activeids = [];
     $sortorder = 0;
     foreach ($criteria as $criterion) {
         if (is_array($criterion)) {
+            $id = (int)($criterion['id'] ?? 0);
             $title = trim((string)($criterion['title'] ?? ''));
             $description = trim((string)($criterion['description'] ?? ''));
             $ratingtype = trim((string)($criterion['ratingtype'] ?? 'fourlevel'));
         } else {
+            $id = 0;
             $title = trim((string)$criterion);
             $description = '';
             $ratingtype = 'fourlevel';
@@ -387,17 +404,48 @@ function groupassign_save_peercriteria(int $groupassignid, array $criteria): voi
         if ($title === '') {
             continue;
         }
-        $record = (object)[
-            'groupassignid' => $groupassignid,
-            'description' => $title,
-            'descriptionformat' => FORMAT_HTML,
-            'details' => $description,
-            'ratingtype' => $ratingtype,
-            'sortorder' => $sortorder++,
-            'timecreated' => $now,
-            'timemodified' => $now,
-        ];
-        $DB->insert_record('groupassign_peercriteria', $record);
+        if (!in_array($ratingtype, $validratingtypes, true)) {
+            $ratingtype = 'fourlevel';
+        }
+
+        if ($id && isset($existingbyid[$id])) {
+            $record = $existingbyid[$id];
+        } else if (isset($existingbysortorder[$sortorder])) {
+            $record = $existingbysortorder[$sortorder];
+        } else {
+            $record = (object)[
+                'groupassignid' => $groupassignid,
+                'timecreated' => $now,
+            ];
+        }
+
+        $record->description = $title;
+        $record->descriptionformat = FORMAT_HTML;
+        $record->details = $description;
+        $record->ratingtype = $ratingtype;
+        $record->sortorder = $sortorder++;
+        $record->archived = 0;
+        $record->timemodified = $now;
+
+        if (!empty($record->id)) {
+            $DB->update_record('groupassign_peercriteria', $record);
+            $activeids[] = (int)$record->id;
+        } else {
+            $activeids[] = (int)$DB->insert_record('groupassign_peercriteria', $record);
+        }
+    }
+
+    foreach ($existing as $record) {
+        if (in_array((int)$record->id, $activeids, true)) {
+            continue;
+        }
+        if ($DB->record_exists('groupassign_peerreviews', ['criteriaid' => $record->id])) {
+            $record->archived = 1;
+            $record->timemodified = $now;
+            $DB->update_record('groupassign_peercriteria', $record);
+        } else {
+            $DB->delete_records('groupassign_peercriteria', ['id' => $record->id]);
+        }
     }
 }
 

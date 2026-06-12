@@ -199,12 +199,6 @@ class mod_groupassign_mod_form extends moodleform_mod {
         $mform->hideIf('peerrequirejustification', 'peerenabled', 'notchecked');
         $mform->disabledIf('peerrequirejustification', 'peercomments', 'notchecked');
         $mform->addHelpButton('peerrequirejustification', 'peerrequirejustification', 'groupassign');
-        $mform->addElement('advcheckbox', 'peeranonymous', get_string('peeranonymous', 'groupassign'), '', [], [0, 1]);
-        $mform->setDefault('peeranonymous', 1);
-        $mform->hideIf('peeranonymous', 'peerenabled', 'notchecked');
-        $mform->addElement('advcheckbox', 'peerstudentresponse', get_string('peerstudentresponse', 'groupassign'), '', [], [0, 1]);
-        $mform->setDefault('peerstudentresponse', 0);
-        $mform->hideIf('peerstudentresponse', 'peerenabled', 'notchecked');
 
         $mform->addElement('static', 'peercriteriaintro', get_string('peercriteria', 'groupassign'),
             get_string('peercriteria_help', 'groupassign'));
@@ -214,6 +208,8 @@ class mod_groupassign_mod_form extends moodleform_mod {
             'marks5' => get_string('peerratingtype:marks5', 'groupassign'),
         ];
         for ($i = 0; $i < 5; $i++) {
+            $mform->addElement('hidden', "peercriteria_id[$i]");
+            $mform->setType("peercriteria_id[$i]", PARAM_INT);
             $mform->addElement('text', "peercriteria_title[$i]", get_string('peercriteria', 'groupassign') . ' ' . ($i + 1),
                 ['size' => 64]);
             $mform->setType("peercriteria_title[$i]", PARAM_TEXT);
@@ -229,36 +225,14 @@ class mod_groupassign_mod_form extends moodleform_mod {
         }
 
         $mform->addElement('header', 'feedbacktypes', get_string('feedbacktypes', 'groupassign'));
-        $mform->addElement('advcheckbox', 'feedbackcommentsenabled', get_string('feedbackcomments', 'groupassign'), '', [], [0, 1]);
-        $mform->setDefault('feedbackcommentsenabled', 1);
-        $mform->addElement('advcheckbox', 'feedbackfilesenabled', get_string('feedbackfiles', 'assignfeedback_file'), '',
-            [], [0, 1]);
+        $mform->addElement('static', 'feedbackcommentsenabled', get_string('feedbackcomments', 'groupassign'),
+            get_string('feedbackcommentsalwayson', 'groupassign'));
 
         $mform->addElement('header', 'notifications', get_string('notifications', 'assign'));
-        $mform->addElement('selectyesno', 'sendnotifications', get_string('sendnotifications', 'assign'));
-        $mform->addHelpButton('sendnotifications', 'sendnotifications', 'assign');
-        $mform->setDefault('sendnotifications', 1);
-        $mform->addElement('selectyesno', 'sendlatenotifications', get_string('sendlatenotifications', 'assign'));
-        $mform->addHelpButton('sendlatenotifications', 'sendlatenotifications', 'assign');
-        $mform->disabledIf('sendlatenotifications', 'sendnotifications', 'eq', 1);
-        $mform->addElement('selectyesno', 'sendstudentnotifications',
-            get_string('sendstudentnotificationsdefault', 'assign'));
-        $mform->addHelpButton('sendstudentnotifications', 'sendstudentnotificationsdefault', 'assign');
+        $mform->addElement('static', 'notificationsdeferred', '',
+            get_string('notificationsdeferred', 'groupassign'));
 
         $this->standard_grading_coursemodule_elements();
-        $mform->addElement('selectyesno', 'blindmarking', get_string('blindmarking', 'assign'));
-        $mform->addHelpButton('blindmarking', 'blindmarking', 'assign');
-        $mform->addElement('selectyesno', 'hidegrader', get_string('hidegrader', 'assign'));
-        $mform->addHelpButton('hidegrader', 'hidegrader', 'assign');
-        $mform->addElement('selectyesno', 'markingworkflow', get_string('markingworkflow', 'assign'));
-        $mform->addHelpButton('markingworkflow', 'markingworkflow', 'assign');
-        $mform->addElement('selectyesno', 'markingallocation', get_string('markingallocation', 'assign'));
-        $mform->addHelpButton('markingallocation', 'markingallocation', 'assign');
-        $mform->hideIf('markingallocation', 'markingworkflow', 'eq', 0);
-        $mform->addElement('selectyesno', 'markinganonymous', get_string('markinganonymous', 'assign'));
-        $mform->addHelpButton('markinganonymous', 'markinganonymous', 'assign');
-        $mform->hideIf('markinganonymous', 'markingworkflow', 'eq', 0);
-        $mform->hideIf('markinganonymous', 'blindmarking', 'eq', 0);
         $this->standard_coursemodule_elements();
         $this->add_action_buttons();
     }
@@ -283,9 +257,11 @@ class mod_groupassign_mod_form extends moodleform_mod {
 
         $criteria = [];
         if (!empty($this->current->id)) {
-            $records = $DB->get_records('groupassign_peercriteria', ['groupassignid' => $this->current->id], 'sortorder ASC');
+            $records = $DB->get_records('groupassign_peercriteria',
+                ['groupassignid' => $this->current->id, 'archived' => 0], 'sortorder ASC');
             foreach ($records as $record) {
                 $criteria[] = [
+                    'id' => $record->id,
                     'title' => $record->description,
                     'description' => $record->details ?? '',
                     'ratingtype' => $record->ratingtype ?? 'fourlevel',
@@ -298,6 +274,7 @@ class mod_groupassign_mod_form extends moodleform_mod {
         }
 
         for ($i = 0; $i < 5; $i++) {
+            $defaultvalues["peercriteria_id[$i]"] = $criteria[$i]['id'] ?? 0;
             $defaultvalues["peercriteria_title[$i]"] = $criteria[$i]['title'] ?? '';
             $defaultvalues["peercriteria_description[$i]"] = $criteria[$i]['description'] ?? '';
             $defaultvalues["peercriteria_ratingtype[$i]"] = $criteria[$i]['ratingtype'] ?? 'fourlevel';
