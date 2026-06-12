@@ -250,5 +250,47 @@ function xmldb_groupassign_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026053002, 'groupassign');
     }
 
+    if ($oldversion < 2026061201) {
+        $table = new xmldb_table('groupassign');
+        $fields = [
+            new xmldb_field('activity', XMLDB_TYPE_TEXT, null, null, null, null, null, 'introformat'),
+            new xmldb_field('activityformat', XMLDB_TYPE_INTEGER, '4', null, XMLDB_NOTNULL, null, '1', 'activity'),
+            new xmldb_field('timelimit', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'gradingduedate'),
+            new xmldb_field('alwaysshowdescription', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'timelimit'),
+            new xmldb_field('submissionattachments', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0',
+                'alwaysshowdescription'),
+            new xmldb_field('wordlimit', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'submissionfiletypes'),
+            new xmldb_field('submissiondrafts', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'wordlimit'),
+            new xmldb_field('requiresubmissionstatement', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0',
+                'submissiondrafts'),
+            new xmldb_field('maxattempts', XMLDB_TYPE_INTEGER, '4', null, XMLDB_NOTNULL, null, '-1',
+                'requiresubmissionstatement'),
+            new xmldb_field('attemptreopenmethod', XMLDB_TYPE_CHAR, '16', null, XMLDB_NOTNULL, null, 'manual',
+                'maxattempts'),
+            new xmldb_field('sendnotifications', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '1',
+                'peerstudentresponse'),
+            new xmldb_field('sendlatenotifications', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0',
+                'sendnotifications'),
+            new xmldb_field('sendstudentnotifications', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '1',
+                'sendlatenotifications'),
+            new xmldb_field('blindmarking', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0',
+                'sendstudentnotifications'),
+            new xmldb_field('hidegrader', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'blindmarking'),
+            new xmldb_field('markingworkflow', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'hidegrader'),
+            new xmldb_field('markingallocation', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0',
+                'markingworkflow'),
+            new xmldb_field('markinganonymous', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0',
+                'markingallocation'),
+        ];
+
+        foreach ($fields as $field) {
+            if (!$dbman->field_exists($table, $field)) {
+                $dbman->add_field($table, $field);
+            }
+        }
+
+        upgrade_mod_savepoint(true, 2026061201, 'groupassign');
+    }
+
     return true;
 }

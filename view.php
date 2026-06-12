@@ -63,6 +63,32 @@ function groupassign_selection_open($groupassign): bool {
     return true;
 }
 
+function groupassign_submission_open($groupassign): bool {
+    $now = time();
+    if (!empty($groupassign->allowsubmissionsfromdate) && $now < $groupassign->allowsubmissionsfromdate) {
+        return false;
+    }
+    if (!empty($groupassign->cutoffdate) && $now > $groupassign->cutoffdate) {
+        return false;
+    }
+    return true;
+}
+
+function groupassign_submission_window_notice($groupassign): string {
+    $parts = [];
+    if (!empty($groupassign->allowsubmissionsfromdate)) {
+        $parts[] = get_string('allowsubmissionsfromdate', 'assign') . ': ' .
+            userdate($groupassign->allowsubmissionsfromdate);
+    }
+    if (!empty($groupassign->duedate)) {
+        $parts[] = get_string('duedate', 'assign') . ': ' . userdate($groupassign->duedate);
+    }
+    if (!empty($groupassign->cutoffdate)) {
+        $parts[] = get_string('cutoffdate', 'assign') . ': ' . userdate($groupassign->cutoffdate);
+    }
+    return implode(' ', $parts);
+}
+
 function groupassign_get_groups($groupassign): array {
     if (empty($groupassign->groupingid)) {
         return [];
@@ -188,6 +214,56 @@ function groupassign_render_submission_content($submission, $context): string {
     }
 
     return $parts ? implode('', $parts) : '-';
+}
+
+function groupassign_render_activity_details($groupassign, $cm, $context): string {
+    $parts = [];
+    $intro = format_module_intro('groupassign', $groupassign, $cm->id);
+    if (trim(strip_tags($intro)) !== '') {
+        $parts[] = html_writer::div($intro, 'groupassign-intro mb-3');
+    }
+    if (!empty($groupassign->activity)) {
+        $parts[] = html_writer::div(
+            html_writer::tag('h4', get_string('activityinstructions', 'groupassign'), ['class' => 'h5'])
+            . format_text($groupassign->activity, $groupassign->activityformat),
+            'groupassign-activity-instructions mb-3'
+        );
+    }
+
+    $fs = get_file_storage();
+    $files = $fs->get_area_files($context->id, 'mod_groupassign', 'introattachment', 0, 'filename', false);
+    if ($files) {
+        $links = [];
+        foreach ($files as $file) {
+            $url = moodle_url::make_pluginfile_url($context->id, 'mod_groupassign', 'introattachment', 0,
+                $file->get_filepath(), $file->get_filename());
+            $links[] = html_writer::link($url, s($file->get_filename()));
+        }
+        $parts[] = html_writer::div(
+            html_writer::tag('h4', get_string('additionalfiles', 'groupassign'), ['class' => 'h5'])
+            . html_writer::alist($links),
+            'groupassign-additional-files mb-3'
+        );
+    }
+
+    return $parts ? html_writer::div(implode('', $parts), 'card card-body mb-4') : '';
+}
+
+function groupassign_setup_warnings($groupassign, array $groups, int $studentswithoutgroup): array {
+    $warnings = [];
+    $grouping = !empty($groupassign->groupingid) ? groups_get_grouping($groupassign->groupingid) : false;
+
+    if ($groupassign->formationmode === GROUPASSIGN_FORMATION_EXISTING && !$grouping) {
+        $warnings[] = get_string('coursecopywarningmissinggrouping', 'groupassign');
+    }
+    if (!$groups) {
+        $warnings[] = get_string('coursecopywarningnogroups', 'groupassign');
+    }
+    if ($studentswithoutgroup > 0) {
+        $warnings[] = get_string('coursecopywarningunallocated', 'groupassign', $studentswithoutgroup);
+    }
+
+    return $warnings;
 }
 
 function groupassign_peer_rating_options(string $ratingtype = 'fourlevel'): array {
@@ -385,6 +461,20 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
     }
 
     echo $OUTPUT->heading(get_string('groupmanagementsummary', 'groupassign'), 3);
+    echo groupassign_render_activity_details($groupassign, $cm, $context);
+    $warnings = groupassign_setup_warnings($groupassign, $groups, $studentswithoutgroup);
+    if ($warnings) {
+        echo $OUTPUT->notification(
+            html_writer::tag('strong', get_string('coursecopycheck', 'groupassign')) .
+            html_writer::alist(array_map('s', $warnings)) .
+            html_writer::div(html_writer::link(new moodle_url('/course/modedit.php', [
+                'update' => $cm->id,
+                'return' => 1,
+            ]), get_string('settings'), ['class' => 'btn btn-sm btn-warning mt-2'])),
+            'warning',
+            false
+        );
+    }
     $overview = html_writer::div(groupassign_selection_window_notice($groupassign), 'alert alert-info');
     $overview .= html_writer::start_div('groupassign-summary-grid mb-4');
     $cards = [
@@ -827,6 +917,7 @@ function groupassign_render_group_submission_form($groupassign, $cm, $context, $
     global $DB, $OUTPUT, $PAGE, $USER;
 
     $submission = groupassign_get_submission($groupassign, $group->id);
+    $submissionsopen = groupassign_submission_open($groupassign);
     $draftitemid = file_get_submitted_draft_itemid('submissionfiles');
     file_prepare_draft_area($draftitemid, $context->id, 'mod_groupassign', 'submission', $submission->id ?? 0, $fileoptions);
 
@@ -845,6 +936,10 @@ function groupassign_render_group_submission_form($groupassign, $cm, $context, $
     ]);
 
     if ($data = $mform->get_data()) {
+        if (!$submissionsopen) {
+            redirect($PAGE->url, get_string('submissionsclosed', 'groupassign'), null,
+                \core\output\notification::NOTIFY_WARNING);
+        }
         $now = time();
         $record = (object)[
             'groupassignid' => $groupassign->id,
@@ -877,7 +972,15 @@ function groupassign_render_group_submission_form($groupassign, $cm, $context, $
         echo html_writer::div(get_string('status', 'groupassign') . ': ' . groupassign_status_label($submission),
             'alert alert-info');
     }
-    $mform->display();
+    $notice = groupassign_submission_window_notice($groupassign);
+    if ($notice !== '') {
+        echo html_writer::div($notice, 'alert alert-light border');
+    }
+    if ($submissionsopen) {
+        $mform->display();
+    } else {
+        echo $OUTPUT->notification(get_string('submissionsclosed', 'groupassign'), 'warning');
+    }
 }
 
 function groupassign_render_student_view($groupassign, $cm, $context, $editoroptions, $fileoptions): void {
@@ -888,6 +991,7 @@ function groupassign_render_student_view($groupassign, $cm, $context, $editoropt
     $mygroupids = array_map(fn($group) => (int)$group->id, $mygroups);
     $isopen = groupassign_selection_open($groupassign);
 
+    echo groupassign_render_activity_details($groupassign, $cm, $context);
     echo $OUTPUT->heading(get_string('choosegroup', 'groupassign'), 3);
     echo html_writer::div(groupassign_selection_window_notice($groupassign),
         $isopen ? 'alert alert-info' : 'alert alert-warning');

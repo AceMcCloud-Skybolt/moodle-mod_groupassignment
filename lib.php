@@ -22,6 +22,7 @@ function groupassign_supports($feature) {
         case FEATURE_GRADE_HAS_GRADE:
         case FEATURE_ADVANCED_GRADING:
         case FEATURE_COMPLETION_TRACKS_VIEWS:
+        case FEATURE_COMPLETION_HAS_RULES:
         case FEATURE_SHOW_DESCRIPTION:
             return true;
         case FEATURE_BACKUP_MOODLE2:
@@ -37,9 +38,11 @@ function groupassign_add_instance($data, $mform = null) {
     global $DB;
 
     $peercriteria = groupassign_extract_peercriteria($data);
+    $draftitems = groupassign_extract_editor_fields($data);
     groupassign_normalise_settings($data);
     $data->timemodified = time();
     $data->id = $DB->insert_record('groupassign', $data);
+    groupassign_save_activity_files($data, $draftitems);
     groupassign_sync_groups($data);
     groupassign_save_peercriteria($data->id, $peercriteria);
     groupassign_grade_item_update($data);
@@ -51,10 +54,12 @@ function groupassign_update_instance($data, $mform = null) {
     global $DB;
 
     $peercriteria = groupassign_extract_peercriteria($data);
+    $draftitems = groupassign_extract_editor_fields($data);
     groupassign_normalise_settings($data);
     $data->id = $data->instance;
     $data->timemodified = time();
     $DB->update_record('groupassign', $data);
+    groupassign_save_activity_files($data, $draftitems);
     groupassign_sync_groups($data);
     groupassign_save_peercriteria($data->id, $peercriteria);
     groupassign_grade_item_update($data);
@@ -70,6 +75,10 @@ function groupassign_delete_instance($id) {
     }
 
     grade_update('mod/groupassign', $groupassign->course, 'mod', 'groupassign', $groupassign->id, 0, null, ['deleted' => 1]);
+    if ($cm = get_coursemodule_from_instance('groupassign', $id, $groupassign->course, false)) {
+        $context = context_module::instance($cm->id);
+        get_file_storage()->delete_area_files($context->id, 'mod_groupassign');
+    }
     $DB->delete_records('groupassign_groups', ['groupassignid' => $id]);
     $DB->delete_records('groupassign_submissions', ['groupassignid' => $id]);
     $DB->delete_records('groupassign_grades', ['groupassignid' => $id]);
@@ -211,6 +220,13 @@ function groupassign_gradebook_grade_object(int $userid, ?stdClass $gradegroup, 
 }
 
 function groupassign_normalise_settings(stdClass $data): void {
+    if (isset($data->activity)) {
+        $data->activity = (string)$data->activity;
+    }
+    $data->activityformat = (int)($data->activityformat ?? FORMAT_HTML);
+    $data->submissionattachments = empty($data->submissionattachments) ? 0 : 1;
+    $data->alwaysshowdescription = empty($data->alwaysshowdescription) ? 0 : 1;
+    $data->timelimit = max(0, (int)($data->timelimit ?? 0));
     $data->formationmode = $data->formationmode ?? GROUPASSIGN_FORMATION_SELFSELECT;
     $data->managedgrouping = empty($data->managedgrouping) ? 0 : 1;
     if ($data->formationmode !== GROUPASSIGN_FORMATION_EXISTING) {
@@ -239,17 +255,64 @@ function groupassign_normalise_settings(stdClass $data): void {
     $data->submissiononlinetext = empty($data->submissiononlinetext) ? 0 : 1;
     $data->submissionfile = empty($data->submissionfile) ? 0 : 1;
     $data->submissionfiletypes = trim((string)($data->submissionfiletypes ?? ''));
+    $data->wordlimit = max(0, (int)($data->wordlimit ?? 0));
     $data->maxfiles = max(1, (int)($data->maxfiles ?? 5));
     $data->maxbytes = max(0, (int)($data->maxbytes ?? 0));
+    $data->submissiondrafts = empty($data->submissiondrafts) ? 0 : 1;
+    $data->requiresubmissionstatement = empty($data->requiresubmissionstatement) ? 0 : 1;
+    $data->maxattempts = (int)($data->maxattempts ?? -1);
+    $attemptmethods = ['manual', 'automatic', 'untilpass'];
+    $data->attemptreopenmethod = in_array(($data->attemptreopenmethod ?? 'manual'), $attemptmethods, true)
+        ? $data->attemptreopenmethod
+        : 'manual';
     $data->peerrequirejustification = empty($data->peerrequirejustification) ? 0 : 1;
+    $data->sendnotifications = empty($data->sendnotifications) ? 0 : 1;
+    $data->sendlatenotifications = empty($data->sendlatenotifications) ? 0 : 1;
+    $data->sendstudentnotifications = empty($data->sendstudentnotifications) ? 0 : 1;
+    $data->blindmarking = empty($data->blindmarking) ? 0 : 1;
+    $data->hidegrader = empty($data->hidegrader) ? 0 : 1;
+    $data->markingworkflow = empty($data->markingworkflow) ? 0 : 1;
+    $data->markingallocation = empty($data->markingallocation) ? 0 : 1;
+    $data->markinganonymous = empty($data->markinganonymous) ? 0 : 1;
     if (property_exists($data, 'feedbackcommentsenabled')) {
         unset($data->feedbackcommentsenabled);
     }
-    if (property_exists($data, 'sendnotifications')) {
-        unset($data->sendnotifications);
+    if (property_exists($data, 'feedbackfilesenabled')) {
+        unset($data->feedbackfilesenabled);
     }
     if (property_exists($data, 'submissiontypesgroup')) {
         unset($data->submissiontypesgroup);
+    }
+}
+
+function groupassign_extract_editor_fields(stdClass $data): array {
+    $draftitems = [
+        'activity' => null,
+        'introattachments' => $data->introattachments ?? null,
+    ];
+    if (isset($data->activityeditor) && is_array($data->activityeditor)) {
+        $data->activity = $data->activityeditor['text'] ?? '';
+        $data->activityformat = $data->activityeditor['format'] ?? FORMAT_HTML;
+        $draftitems['activity'] = $data->activityeditor['itemid'] ?? null;
+    }
+    unset($data->activityeditor, $data->introattachments);
+
+    return $draftitems;
+}
+
+function groupassign_save_activity_files(stdClass $groupassign, array $draftitems): void {
+    if (empty($groupassign->coursemodule)) {
+        return;
+    }
+
+    $context = context_module::instance($groupassign->coursemodule);
+    if (!empty($draftitems['activity'])) {
+        file_save_draft_area_files($draftitems['activity'], $context->id, 'mod_groupassign',
+            'activityattachment', 0, ['subdirs' => true]);
+    }
+    if (!empty($draftitems['introattachments'])) {
+        file_save_draft_area_files($draftitems['introattachments'], $context->id, 'mod_groupassign',
+            'introattachment', 0, ['subdirs' => 0]);
     }
 }
 
@@ -346,7 +409,7 @@ function groupassign_sync_groups(stdClass $groupassign): void {
         return;
     }
 
-    if (empty($groupassign->groupingid)) {
+    if (empty($groupassign->groupingid) || !groups_get_grouping($groupassign->groupingid)) {
         $grouping = (object)[
             'courseid' => $groupassign->course,
             'name' => format_string($groupassign->name),
@@ -409,6 +472,8 @@ function groupassign_number_to_letters(int $number): string {
 function groupassign_track_existing_grouping(stdClass $groupassign): void {
     global $DB;
 
+    $DB->delete_records('groupassign_groups', ['groupassignid' => $groupassign->id]);
+
     if (empty($groupassign->groupingid)) {
         return;
     }
@@ -442,6 +507,8 @@ function groupassign_track_group(int $groupassignid, int $groupid, int $sortorde
 
 function groupassign_get_file_areas($course, $cm, $context) {
     return [
+        'introattachment' => get_string('introattachments', 'assign'),
+        'activityattachment' => get_string('activityeditor', 'assign'),
         'submission' => get_string('submissionfiles', 'groupassign'),
     ];
 }
@@ -449,10 +516,31 @@ function groupassign_get_file_areas($course, $cm, $context) {
 function groupassign_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, array $options = []) {
     global $DB, $USER;
 
-    if ($context->contextlevel !== CONTEXT_MODULE || $filearea !== 'submission') {
+    if ($context->contextlevel !== CONTEXT_MODULE) {
         return false;
     }
     require_login($course, true, $cm);
+
+    if ($filearea === 'introattachment' || $filearea === 'activityattachment') {
+        $itemid = (int)array_shift($args);
+        if ($itemid !== 0) {
+            return false;
+        }
+        $filename = array_pop($args);
+        $filepath = $args ? '/' . implode('/', $args) . '/' : '/';
+
+        $fs = get_file_storage();
+        $file = $fs->get_file($context->id, 'mod_groupassign', $filearea, 0, $filepath, $filename);
+        if (!$file || $file->is_directory()) {
+            return false;
+        }
+
+        send_stored_file($file, 0, 0, $forcedownload, $options);
+    }
+
+    if ($filearea !== 'submission') {
+        return false;
+    }
 
     $itemid = (int)array_shift($args);
     $submission = $DB->get_record('groupassign_submissions', [
