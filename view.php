@@ -174,13 +174,24 @@ function groupassign_get_grade($groupassign, int $groupid) {
     ]);
 }
 
-function groupassign_status_label($submission): string {
+function groupassign_submission_late($groupassign, $submission): bool {
+    return $submission
+        && !empty($groupassign->duedate)
+        && !empty($submission->timesubmitted)
+        && (int)$submission->timesubmitted > (int)$groupassign->duedate;
+}
+
+function groupassign_status_label($submission, $groupassign = null): string {
     if (!$submission) {
         return get_string('notsubmitted', 'groupassign');
     }
-    return (int)$submission->status === GROUPASSIGN_STATUS_SUBMITTED
+    $status = (int)$submission->status === GROUPASSIGN_STATUS_SUBMITTED
         ? get_string('submissionstatus:submitted', 'groupassign')
         : get_string('submissionstatus:draft', 'groupassign');
+    if ($groupassign && groupassign_submission_late($groupassign, $submission)) {
+        $status .= ' - ' . get_string('late', 'groupassign');
+    }
+    return $status;
 }
 
 function groupassign_grade_label($groupassign, $grade): string {
@@ -435,6 +446,7 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
     $overfull = 0;
     $empty = 0;
     $submitted = 0;
+    $latesubmissions = 0;
     $needsgrading = 0;
     $graded = 0;
     foreach ($groups as $group) {
@@ -452,6 +464,9 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
         $grade = groupassign_get_grade($groupassign, $group->id);
         if ($submission && (int)$submission->status === GROUPASSIGN_STATUS_SUBMITTED) {
             $submitted++;
+            if (groupassign_submission_late($groupassign, $submission)) {
+                $latesubmissions++;
+            }
             if (!$grade || $grade->grade === null) {
                 $needsgrading++;
             }
@@ -483,6 +498,7 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
         get_string('participants') => count($students),
         get_string('studentswithoutgroup', 'groupassign') => $studentswithoutgroup,
         get_string('emptygroups', 'groupassign') => $empty,
+        get_string('latesubmissions', 'groupassign') => $latesubmissions,
         get_string('underfilledgroups', 'groupassign') => $underfilled,
         get_string('overfullgroups', 'groupassign') => $overfull,
     ];
@@ -620,6 +636,7 @@ function groupassign_render_submissions_view($groupassign, $cm, $context): void 
         [
             'all' => get_string('all'),
             'submitted' => get_string('submissionstatus:submitted', 'groupassign'),
+            'late' => get_string('late', 'groupassign'),
             'notsubmitted' => get_string('notsubmitted', 'groupassign'),
         ],
         'statusfilter',
@@ -656,9 +673,10 @@ function groupassign_render_submissions_view($groupassign, $cm, $context): void 
         $grade = groupassign_get_grade($groupassign, $group->id);
         foreach ($members as $member) {
             $namematch = $search === '' || stripos(fullname($member), $search) !== false || stripos($member->email, $search) !== false;
-            $status = groupassign_status_label($submission);
+            $status = groupassign_status_label($submission, $groupassign);
             $statusmatch = $statusfilter === 'all'
                 || ($statusfilter === 'submitted' && (int)($submission->status ?? -1) === GROUPASSIGN_STATUS_SUBMITTED)
+                || ($statusfilter === 'late' && groupassign_submission_late($groupassign, $submission))
                 || ($statusfilter === 'notsubmitted' && !$submission);
             if (!$namematch || !$statusmatch) {
                 continue;
@@ -970,7 +988,8 @@ function groupassign_render_group_submission_form($groupassign, $cm, $context, $
 
     echo $OUTPUT->heading(get_string('submission', 'groupassign'), 3);
     if ($submission) {
-        echo html_writer::div(get_string('status', 'groupassign') . ': ' . groupassign_status_label($submission),
+        echo html_writer::div(get_string('status', 'groupassign') . ': ' .
+            groupassign_status_label($submission, $groupassign),
             'alert alert-info');
     }
     $notice = groupassign_submission_window_notice($groupassign);

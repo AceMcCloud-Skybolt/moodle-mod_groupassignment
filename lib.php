@@ -21,9 +21,10 @@ function groupassign_supports($feature) {
         case FEATURE_GROUPINGS:
         case FEATURE_GRADE_HAS_GRADE:
         case FEATURE_COMPLETION_TRACKS_VIEWS:
-        case FEATURE_COMPLETION_HAS_RULES:
         case FEATURE_SHOW_DESCRIPTION:
             return true;
+        case FEATURE_COMPLETION_HAS_RULES:
+            return false;
         case FEATURE_ADVANCED_GRADING:
             return false;
         case FEATURE_BACKUP_MOODLE2:
@@ -229,10 +230,7 @@ function groupassign_normalise_settings(stdClass $data): void {
     $data->alwaysshowdescription = empty($data->alwaysshowdescription) ? 0 : 1;
     $data->timelimit = max(0, (int)($data->timelimit ?? 0));
     $data->formationmode = $data->formationmode ?? GROUPASSIGN_FORMATION_SELFSELECT;
-    $data->managedgrouping = empty($data->managedgrouping) ? 0 : 1;
-    if ($data->formationmode !== GROUPASSIGN_FORMATION_EXISTING) {
-        $data->managedgrouping = 1;
-    }
+    $data->managedgrouping = $data->formationmode === GROUPASSIGN_FORMATION_EXISTING ? 0 : 1;
     $data->numgroups = max(0, (int)($data->numgroups ?? 0));
     $data->groupnameprefix = trim((string)($data->groupnameprefix ?? ''));
     $data->groupnamesuffix = in_array(($data->groupnamesuffix ?? GROUPASSIGN_SUFFIX_NUMBERS),
@@ -466,19 +464,11 @@ function groupassign_sync_groups(stdClass $groupassign): void {
         ];
         $groupassign->groupingid = groups_create_grouping($grouping);
         $DB->set_field('groupassign', 'groupingid', $groupassign->groupingid, ['id' => $groupassign->id]);
-    } else if ($grouping = groups_get_grouping($groupassign->groupingid)) {
-        $grouping->name = format_string($groupassign->name);
-        groups_update_grouping($grouping);
     }
 
+    groupassign_track_existing_grouping($groupassign);
     $existing = $DB->get_records('groupassign_groups', ['groupassignid' => $groupassign->id], 'sortorder ASC');
     $count = count($existing);
-    foreach ($existing as $trackedgroup) {
-        if ($group = groups_get_group($trackedgroup->groupid)) {
-            $group->name = groupassign_format_group_name($groupassign, (int)$trackedgroup->sortorder);
-            groups_update_group($group);
-        }
-    }
     for ($sortorder = $count + 1; $sortorder <= $groupassign->numgroups; $sortorder++) {
         $group = (object)[
             'courseid' => $groupassign->course,
@@ -490,8 +480,6 @@ function groupassign_sync_groups(stdClass $groupassign): void {
         groups_assign_grouping($groupassign->groupingid, $groupid);
         groupassign_track_group($groupassign->id, $groupid, $sortorder);
     }
-
-    groupassign_track_existing_grouping($groupassign);
 }
 
 function groupassign_format_group_name(stdClass $groupassign, int $sortorder): string {
