@@ -734,14 +734,10 @@ function groupassign_render_submissions_view($groupassign, $cm, $context): void 
     echo html_writer::table($table);
 }
 
-function groupassign_render_grade_view($groupassign, $cm, $context, int $groupid, array $editoroptions): void {
-    global $DB, $OUTPUT, $PAGE, $USER;
-
-    require_capability('mod/groupassign:grade', $context);
+function groupassign_prepare_grade_form($groupassign, $cm, $context, int $groupid, array $editoroptions): ?array {
     $groups = groupassign_get_groups($groupassign);
     if (empty($groups[$groupid])) {
-        echo $OUTPUT->notification(get_string('invalidgroupid', 'groupassign'), 'error');
-        return;
+        return null;
     }
 
     $group = $groups[$groupid];
@@ -774,6 +770,30 @@ function groupassign_render_grade_view($groupassign, $cm, $context, int $groupid
         }
     }
     $mform->set_data($defaults);
+
+    return [
+        'mform' => $mform,
+        'group' => $group,
+        'members' => $members,
+        'submission' => $submission,
+        'grade' => $grade,
+        'gradeurl' => $gradeurl,
+    ];
+}
+
+function groupassign_process_grade_form($groupassign, $cm, $context, int $groupid, array $editoroptions): ?array {
+    global $DB, $USER;
+
+    require_capability('mod/groupassign:grade', $context);
+    $prepared = groupassign_prepare_grade_form($groupassign, $cm, $context, $groupid, $editoroptions);
+    if ($prepared === null) {
+        return null;
+    }
+
+    $mform = $prepared['mform'];
+    $members = $prepared['members'];
+    $grade = $prepared['grade'];
+    $gradeurl = $prepared['gradeurl'];
 
     if ($mform->is_cancelled()) {
         redirect(new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id, 'action' => 'submissions']));
@@ -834,6 +854,25 @@ function groupassign_render_grade_view($groupassign, $cm, $context, int $groupid
             \core\output\notification::NOTIFY_SUCCESS);
     }
 
+    return $prepared;
+}
+
+function groupassign_render_grade_view($groupassign, $cm, $context, int $groupid, array $editoroptions,
+        ?array $prepared = null): void {
+    global $OUTPUT;
+
+    require_capability('mod/groupassign:grade', $context);
+    $prepared = $prepared ?? groupassign_prepare_grade_form($groupassign, $cm, $context, $groupid, $editoroptions);
+    if ($prepared === null) {
+        echo $OUTPUT->notification(get_string('invalidgroupid', 'groupassign'), 'error');
+        return;
+    }
+
+    $mform = $prepared['mform'];
+    $group = $prepared['group'];
+    $members = $prepared['members'];
+    $submission = $prepared['submission'];
+
     echo html_writer::link(new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id, 'action' => 'submissions']),
         get_string('submissions', 'groupassign'), ['class' => 'btn btn-secondary mb-3']);
     echo $OUTPUT->heading(format_string($group->name), 3);
@@ -844,27 +883,23 @@ function groupassign_render_grade_view($groupassign, $cm, $context, int $groupid
     $mform->display();
 }
 
-function groupassign_render_peer_review_view($groupassign, $cm, $context): void {
-    global $DB, $OUTPUT, $PAGE, $USER;
+function groupassign_prepare_peer_review_form($groupassign, $cm, $context): ?array {
+    global $DB, $USER;
 
-    require_capability('mod/groupassign:join', $context);
     if (empty($groupassign->peerenabled)) {
-        echo $OUTPUT->notification(get_string('peerreviewdisabled', 'groupassign'), 'info');
-        return;
+        return null;
     }
 
     $mygroups = groupassign_get_my_groups($groupassign, $USER->id);
     if (!$mygroups) {
-        echo $OUTPUT->notification(get_string('nogroup', 'groupassign'), 'info');
-        return;
+        return null;
     }
 
     $group = reset($mygroups);
     $criteria = groupassign_get_peercriteria($groupassign);
     $members = groupassign_get_reviewable_members($groupassign, $group->id, $USER->id);
     if (!$criteria || !$members) {
-        echo $OUTPUT->notification(get_string('peerreviewdisabled', 'groupassign'), 'info');
-        return;
+        return null;
     }
 
     $url = new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id, 'action' => 'peerreview']);
@@ -889,6 +924,28 @@ function groupassign_render_peer_review_view($groupassign, $cm, $context): void 
         $defaults['comment_' . $review->criteriaid . '_' . $review->revieweeid] = $review->comment;
     }
     $mform->set_data($defaults);
+
+    return [
+        'mform' => $mform,
+        'group' => $group,
+        'criteria' => $criteria,
+        'members' => $members,
+    ];
+}
+
+function groupassign_process_peer_review_form($groupassign, $cm, $context): ?array {
+    global $DB, $USER;
+
+    require_capability('mod/groupassign:join', $context);
+    $prepared = groupassign_prepare_peer_review_form($groupassign, $cm, $context);
+    if ($prepared === null) {
+        return null;
+    }
+
+    $mform = $prepared['mform'];
+    $group = $prepared['group'];
+    $criteria = $prepared['criteria'];
+    $members = $prepared['members'];
 
     if ($mform->is_cancelled()) {
         redirect(new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id]));
@@ -924,6 +981,22 @@ function groupassign_render_peer_review_view($groupassign, $cm, $context): void 
             get_string('peerreviewsaved', 'groupassign'), null, \core\output\notification::NOTIFY_SUCCESS);
     }
 
+    return $prepared;
+}
+
+function groupassign_render_peer_review_view($groupassign, $cm, $context, ?array $prepared = null): void {
+    global $OUTPUT;
+
+    require_capability('mod/groupassign:join', $context);
+    $prepared = $prepared ?? groupassign_prepare_peer_review_form($groupassign, $cm, $context);
+    if ($prepared === null) {
+        echo $OUTPUT->notification(get_string('peerreviewdisabled', 'groupassign'), 'info');
+        return;
+    }
+
+    $mform = $prepared['mform'];
+    $group = $prepared['group'];
+
     echo html_writer::link(new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id]),
         get_string('modulename', 'groupassign'), ['class' => 'btn btn-secondary mb-3']);
     echo $OUTPUT->heading(get_string('peerreview', 'groupassign'), 3);
@@ -932,9 +1005,7 @@ function groupassign_render_peer_review_view($groupassign, $cm, $context): void 
     $mform->display();
 }
 
-function groupassign_render_group_submission_form($groupassign, $cm, $context, $group, $editoroptions, $fileoptions): void {
-    global $DB, $OUTPUT, $PAGE, $USER;
-
+function groupassign_prepare_group_submission_form($groupassign, $cm, $context, $group, $editoroptions, $fileoptions): array {
     $submission = groupassign_get_submission($groupassign, $group->id);
     $submissionsopen = groupassign_submission_open($groupassign);
     $draftitemid = file_get_submitted_draft_itemid('submissionfiles');
@@ -953,6 +1024,21 @@ function groupassign_render_group_submission_form($groupassign, $cm, $context, $
         ],
         'submissionfiles' => $draftitemid,
     ]);
+
+    return [
+        'mform' => $mform,
+        'submission' => $submission,
+        'submissionsopen' => $submissionsopen,
+    ];
+}
+
+function groupassign_process_group_submission_form($groupassign, $cm, $context, $group, $editoroptions, $fileoptions): array {
+    global $DB, $PAGE, $USER;
+
+    $prepared = groupassign_prepare_group_submission_form($groupassign, $cm, $context, $group, $editoroptions, $fileoptions);
+    $mform = $prepared['mform'];
+    $submission = $prepared['submission'];
+    $submissionsopen = $prepared['submissionsopen'];
 
     if ($data = $mform->get_data()) {
         if (!$submissionsopen) {
@@ -986,6 +1072,19 @@ function groupassign_render_group_submission_form($groupassign, $cm, $context, $
             \core\output\notification::NOTIFY_SUCCESS);
     }
 
+    return $prepared;
+}
+
+function groupassign_render_group_submission_form($groupassign, $cm, $context, $group, $editoroptions, $fileoptions,
+        ?array $prepared = null): void {
+    global $OUTPUT;
+
+    $prepared = $prepared ?? groupassign_prepare_group_submission_form($groupassign, $cm, $context, $group, $editoroptions,
+        $fileoptions);
+    $mform = $prepared['mform'];
+    $submission = $prepared['submission'];
+    $submissionsopen = $prepared['submissionsopen'];
+
     echo $OUTPUT->heading(get_string('submission', 'groupassign'), 3);
     if ($submission) {
         echo html_writer::div(get_string('status', 'groupassign') . ': ' .
@@ -1003,7 +1102,8 @@ function groupassign_render_group_submission_form($groupassign, $cm, $context, $
     }
 }
 
-function groupassign_render_student_view($groupassign, $cm, $context, $editoroptions, $fileoptions): void {
+function groupassign_render_student_view($groupassign, $cm, $context, $editoroptions, $fileoptions,
+        ?array $submissionform = null): void {
     global $OUTPUT, $USER;
 
     $groups = groupassign_get_groups($groupassign);
@@ -1020,7 +1120,8 @@ function groupassign_render_student_view($groupassign, $cm, $context, $editoropt
         $currentgroup = reset($mygroups);
         echo html_writer::div(get_string('currentgroup', 'groupassign') . ': ' .
             implode(', ', array_map(fn($group) => format_string($group->name), $mygroups)), 'alert alert-success');
-        groupassign_render_group_submission_form($groupassign, $cm, $context, $currentgroup, $editoroptions, $fileoptions);
+        groupassign_render_group_submission_form($groupassign, $cm, $context, $currentgroup, $editoroptions, $fileoptions,
+            $submissionform);
         if (!empty($groupassign->peerenabled)) {
             $peerstatus = groupassign_peer_review_status_label($groupassign, $currentgroup->id, $USER->id);
             echo html_writer::div(
@@ -1175,6 +1276,23 @@ if ($action !== 'view' && $action !== 'submissions' && $action !== 'grade' && $a
     redirect($PAGE->url);
 }
 
+$gradeform = null;
+$peerreviewform = null;
+$submissionform = null;
+
+if ($action === 'grade' && $cangrade) {
+    $gradeform = groupassign_process_grade_form($groupassign, $cm, $context, $groupid, $editoroptions);
+} else if ($action === 'peerreview' && $canjoin && !$canmanage && !$cangrade) {
+    $peerreviewform = groupassign_process_peer_review_form($groupassign, $cm, $context);
+} else if ($action === 'view' && $canjoin && !$canmanage && !$cangrade) {
+    $mygroups = groupassign_get_my_groups($groupassign, $USER->id);
+    if ($mygroups) {
+        $currentgroup = reset($mygroups);
+        $submissionform = groupassign_process_group_submission_form($groupassign, $cm, $context, $currentgroup,
+            $editoroptions, $fileoptions);
+    }
+}
+
 echo $OUTPUT->header();
 echo $OUTPUT->heading(format_string($groupassign->name));
 echo format_module_intro('groupassign', $groupassign, $cm->id);
@@ -1183,15 +1301,15 @@ if ($canmanage || $cangrade) {
     if ($action === 'submissions' && $cangrade) {
         groupassign_render_submissions_view($groupassign, $cm, $context);
     } else if ($action === 'grade' && $cangrade) {
-        groupassign_render_grade_view($groupassign, $cm, $context, $groupid, $editoroptions);
+        groupassign_render_grade_view($groupassign, $cm, $context, $groupid, $editoroptions, $gradeform);
     } else {
         groupassign_render_teacher_view($groupassign, $cm, $context);
     }
 } else if ($canjoin) {
     if ($action === 'peerreview') {
-        groupassign_render_peer_review_view($groupassign, $cm, $context);
+        groupassign_render_peer_review_view($groupassign, $cm, $context, $peerreviewform);
     } else {
-        groupassign_render_student_view($groupassign, $cm, $context, $editoroptions, $fileoptions);
+        groupassign_render_student_view($groupassign, $cm, $context, $editoroptions, $fileoptions, $submissionform);
     }
 }
 
