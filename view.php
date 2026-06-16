@@ -110,6 +110,55 @@ function groupassign_get_my_groups($groupassign, int $userid): array {
     return groups_get_all_groups($groupassign->course, $userid, $groupassign->groupingid, 'g.*', 'g.name ASC') ?: [];
 }
 
+function groupassign_group_ids(array $groups): array {
+    return array_map(static fn($group) => (int)$group->id, $groups);
+}
+
+function groupassign_group_members_map(array $groups): array {
+    global $DB;
+
+    $members = [];
+    $groupids = groupassign_group_ids($groups);
+    if (!$groupids) {
+        return $members;
+    }
+
+    [$insql, $params] = $DB->get_in_or_equal($groupids, SQL_PARAMS_NAMED, 'groupid');
+    $sql = "SELECT gm.id AS membershipid, gm.groupid AS gagroupid, u.*
+              FROM {groups_members} gm
+              JOIN {user} u ON u.id = gm.userid
+             WHERE gm.groupid $insql
+          ORDER BY gm.groupid, u.lastname, u.firstname";
+    $records = $DB->get_recordset_sql($sql, $params);
+    foreach ($records as $record) {
+        $groupid = (int)$record->gagroupid;
+        unset($record->membershipid, $record->gagroupid);
+        $members[$groupid][$record->id] = $record;
+    }
+    $records->close();
+
+    return $members;
+}
+
+function groupassign_records_by_group(string $table, int $groupassignid, array $groups): array {
+    global $DB;
+
+    $recordsbygroup = [];
+    $groupids = groupassign_group_ids($groups);
+    if (!$groupids) {
+        return $recordsbygroup;
+    }
+
+    [$insql, $params] = $DB->get_in_or_equal($groupids, SQL_PARAMS_NAMED, 'groupid');
+    $params['groupassignid'] = $groupassignid;
+    $records = $DB->get_records_select($table, "groupassignid = :groupassignid AND groupid $insql", $params);
+    foreach ($records as $record) {
+        $recordsbygroup[(int)$record->groupid] = $record;
+    }
+
+    return $recordsbygroup;
+}
+
 function groupassign_member_count(int $groupid): int {
     return count(groups_get_members($groupid, 'u.id'));
 }
@@ -473,6 +522,117 @@ function groupassign_peer_review_group_flag($groupassign, int $groupid): string 
     return get_string('peerflag:clear', 'groupassign');
 }
 
+function groupassign_peer_review_completion_map($groupassign, array $groups): array {
+    global $DB;
+
+    $groupids = groupassign_group_ids($groups);
+    if (!$groupids) {
+        return [];
+    }
+
+    [$insql, $params] = $DB->get_in_or_equal($groupids, SQL_PARAMS_NAMED, 'groupid');
+    $params['groupassignid'] = $groupassign->id;
+    $sql = "SELECT groupid,
+                   reviewerid,
+                   COUNT(1) AS reviewcount
+              FROM {groupassign_peerreviews}
+             WHERE groupassignid = :groupassignid
+               AND groupid $insql
+          GROUP BY groupid, reviewerid";
+
+    $completion = [];
+    $records = $DB->get_recordset_sql($sql, $params);
+    foreach ($records as $record) {
+        $completion[(int)$record->groupid][(int)$record->reviewerid] = (int)$record->reviewcount;
+    }
+    $records->close();
+    return $completion;
+}
+
+function groupassign_peer_review_group_completion_label_cached($groupassign, int $groupid, array $members,
+        array $completion, int $criteriacount): string {
+    if (!$members || !$criteriacount) {
+        return '-';
+    }
+
+    $complete = 0;
+    $revieweecount = count($members) - (empty($groupassign->peerselfassessment) ? 1 : 0);
+    $expected = $criteriacount * max($revieweecount, 0);
+    foreach ($members as $member) {
+        if ($expected > 0 && (int)($completion[$groupid][$member->id] ?? 0) >= $expected) {
+            $complete++;
+        }
+    }
+
+    return $complete . ' / ' . count($members);
+}
+
+function groupassign_peer_review_flags_map($groupassign, array $groups): array {
+    global $DB;
+
+    $flags = [];
+    $groupids = groupassign_group_ids($groups);
+    if (!$groupids) {
+        return $flags;
+    }
+
+    [$insql, $params] = $DB->get_in_or_equal($groupids, SQL_PARAMS_NAMED, 'groupid');
+    $params['groupassignid'] = $groupassign->id;
+    $reviews = $DB->get_records_select('groupassign_peerreviews',
+        "groupassignid = :groupassignid AND groupid $insql", $params);
+
+    $bygroup = [];
+    foreach ($reviews as $review) {
+        $bygroup[(int)$review->groupid][] = $review;
+    }
+
+    foreach ($groups as $group) {
+        $flags[(int)$group->id] = groupassign_peer_review_flag_from_reviews($bygroup[(int)$group->id] ?? []);
+    }
+
+    return $flags;
+}
+
+function groupassign_peer_review_flag_from_reviews(array $reviews): string {
+    if (!$reviews) {
+        return get_string('peerflag:clear', 'groupassign');
+    }
+
+    $received = [];
+    $given = [];
+    foreach ($reviews as $review) {
+        $received[$review->revieweeid][] = (float)$review->rating;
+        $given[$review->reviewerid][] = (float)$review->rating;
+    }
+
+    $receivedavgs = [];
+    foreach ($received as $userid => $ratings) {
+        $receivedavgs[$userid] = array_sum($ratings) / max(count($ratings), 1);
+    }
+    if (count($receivedavgs) >= 2) {
+        $minavg = min($receivedavgs);
+        $maxavg = max($receivedavgs);
+        if ($minavg <= 2.0 && ($maxavg - $minavg) >= 1.5) {
+            return get_string('peerflag:concern', 'groupassign');
+        }
+    }
+
+    $givenavgs = [];
+    foreach ($given as $userid => $ratings) {
+        $givenavgs[$userid] = array_sum($ratings) / max(count($ratings), 1);
+    }
+    if (count($givenavgs) >= 2) {
+        $median = (array_sum($givenavgs) / count($givenavgs));
+        foreach ($givenavgs as $avg) {
+            if ($avg <= ($median - 1.2)) {
+                return get_string('peerflag:followup', 'groupassign');
+            }
+        }
+    }
+
+    return get_string('peerflag:clear', 'groupassign');
+}
+
 function groupassign_render_dashboard_section(string $title, string $content, bool $open = false): string {
     $attributes = ['class' => 'groupassign-dashboard-section mb-3'];
     if ($open) {
@@ -489,13 +649,18 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
     global $OUTPUT;
 
     $groups = groupassign_get_groups($groupassign);
+    $membersbygroup = groupassign_group_members_map($groups);
+    $submissionsbygroup = groupassign_records_by_group('groupassign_submissions', $groupassign->id, $groups);
+    $gradesbygroup = groupassign_records_by_group('groupassign_grades', $groupassign->id, $groups);
     $students = get_enrolled_users($context, 'mod/groupassign:join', 0, 'u.*', 'u.lastname, u.firstname');
-    $studentswithoutgroup = 0;
-    foreach ($students as $student) {
-        if (!groupassign_get_my_groups($groupassign, $student->id)) {
-            $studentswithoutgroup++;
+    $studentgroupmemberships = [];
+    foreach ($membersbygroup as $members) {
+        foreach ($members as $member) {
+            $studentgroupmemberships[$member->id] = true;
         }
     }
+    $studentswithoutgroup = count(array_filter($students,
+        static fn($student) => empty($studentgroupmemberships[$student->id])));
 
     $underfilled = 0;
     $overfull = 0;
@@ -505,7 +670,7 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
     $needsgrading = 0;
     $graded = 0;
     foreach ($groups as $group) {
-        $count = groupassign_member_count($group->id);
+        $count = count($membersbygroup[$group->id] ?? []);
         if ($count === 0) {
             $empty++;
         }
@@ -515,8 +680,8 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
         if (!empty($groupassign->maxmembers) && $count > $groupassign->maxmembers) {
             $overfull++;
         }
-        $submission = groupassign_get_submission($groupassign, $group->id);
-        $grade = groupassign_get_grade($groupassign, $group->id);
+        $submission = $submissionsbygroup[$group->id] ?? null;
+        $grade = $gradesbygroup[$group->id] ?? null;
         if ($submission && (int)$submission->status === GROUPASSIGN_STATUS_SUBMITTED) {
             $submitted++;
             if (groupassign_submission_late($groupassign, $submission)) {
@@ -586,7 +751,7 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
     ];
     $table->head[] = get_string('status', 'groupassign');
     foreach ($groups as $group) {
-        $members = groups_get_members($group->id, 'u.*', 'u.lastname, u.firstname');
+        $members = $membersbygroup[$group->id] ?? [];
         $count = count($members);
         $status = [];
         if (!empty($groupassign->minmembers) && $count < $groupassign->minmembers) {
@@ -630,6 +795,9 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
 
     $peercontent = '';
     if (!empty($groupassign->peerenabled)) {
+        $peercompletion = groupassign_peer_review_completion_map($groupassign, $groups);
+        $peerflags = groupassign_peer_review_flags_map($groupassign, $groups);
+        $criteriacount = count(groupassign_get_peercriteria($groupassign));
         $peertable = new html_table();
         $peertable->head = [
             get_string('group'),
@@ -639,7 +807,7 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
             get_string('actions', 'groupassign'),
         ];
         foreach ($groups as $group) {
-            $members = groups_get_members($group->id, 'u.*', 'u.lastname, u.firstname');
+            $members = $membersbygroup[$group->id] ?? [];
             $nudgebuttons = [];
             foreach ($members as $member) {
                 $nudgebuttons[] = html_writer::link(new moodle_url('/message/index.php', ['user2' => $member->id]),
@@ -648,8 +816,9 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
             $peertable->data[] = [
                 format_string($group->name),
                 $members ? implode(', ', array_map('fullname', $members)) : '-',
-                groupassign_peer_review_group_completion_label($groupassign, $group->id),
-                groupassign_peer_review_group_flag($groupassign, $group->id),
+                groupassign_peer_review_group_completion_label_cached($groupassign, $group->id, $members,
+                    $peercompletion, $criteriacount),
+                $peerflags[$group->id] ?? get_string('peerflag:clear', 'groupassign'),
                 $nudgebuttons ? implode(' ', $nudgebuttons) : '-',
             ];
         }
@@ -664,8 +833,13 @@ function groupassign_render_submissions_view($groupassign, $cm, $context): void 
     global $OUTPUT;
 
     $groups = groupassign_get_groups($groupassign);
+    $membersbygroup = groupassign_group_members_map($groups);
+    $submissionsbygroup = groupassign_records_by_group('groupassign_submissions', $groupassign->id, $groups);
+    $gradesbygroup = groupassign_records_by_group('groupassign_grades', $groupassign->id, $groups);
     $search = optional_param('search', '', PARAM_TEXT);
     $statusfilter = optional_param('statusfilter', 'all', PARAM_ALPHA);
+    $page = max(0, optional_param('page', 0, PARAM_INT));
+    $perpage = min(100, max(10, optional_param('perpage', 20, PARAM_INT)));
 
     echo $OUTPUT->heading(get_string('submissions', 'groupassign'), 3);
     if (!$groups) {
@@ -699,10 +873,42 @@ function groupassign_render_submissions_view($groupassign, $cm, $context): void 
         false,
         ['id' => 'groupassign-statusfilter', 'class' => 'custom-select']
     );
+    $toolbar .= html_writer::tag('label', get_string('show'), ['for' => 'groupassign-perpage']);
+    $toolbar .= html_writer::select([10 => 10, 20 => 20, 50 => 50, 100 => 100], 'perpage', $perpage, false,
+        ['id' => 'groupassign-perpage', 'class' => 'custom-select']);
     $toolbar .= html_writer::empty_tag('input', ['type' => 'submit', 'value' => get_string('filter'), 'class' => 'btn btn-secondary']);
     $toolbar .= html_writer::end_div();
     $toolbar .= html_writer::end_tag('form');
     echo $toolbar;
+
+    $rows = [];
+    foreach ($groups as $group) {
+        $members = $membersbygroup[$group->id] ?? [];
+        $submission = $submissionsbygroup[$group->id] ?? null;
+        $grade = $gradesbygroup[$group->id] ?? null;
+        foreach ($members as $member) {
+            $namematch = $search === '' || stripos(fullname($member), $search) !== false || stripos($member->email, $search) !== false;
+            $status = groupassign_status_label($submission, $groupassign);
+            $statusmatch = $statusfilter === 'all'
+                || ($statusfilter === 'submitted' && (int)($submission->status ?? -1) === GROUPASSIGN_STATUS_SUBMITTED)
+                || ($statusfilter === 'late' && groupassign_submission_late($groupassign, $submission))
+                || ($statusfilter === 'notsubmitted' && !$submission);
+            if (!$namematch || !$statusmatch) {
+                continue;
+            }
+
+            $rows[] = [
+                'member' => $member,
+                'group' => $group,
+                'submission' => $submission,
+                'grade' => $grade,
+                'status' => $status,
+            ];
+        }
+    }
+
+    $totalrows = count($rows);
+    $pagedrows = array_slice($rows, $page * $perpage, $perpage);
 
     $table = new html_table();
     $table->attributes['class'] = 'generaltable groupassign-submissions-table';
@@ -722,63 +928,54 @@ function groupassign_render_submissions_view($groupassign, $cm, $context): void 
         get_string('actions', 'groupassign'),
     ];
 
-    foreach ($groups as $group) {
-        $members = groups_get_members($group->id, 'u.*', 'u.lastname, u.firstname');
-        $submission = groupassign_get_submission($groupassign, $group->id);
-        $grade = groupassign_get_grade($groupassign, $group->id);
-        foreach ($members as $member) {
-            $namematch = $search === '' || stripos(fullname($member), $search) !== false || stripos($member->email, $search) !== false;
-            $status = groupassign_status_label($submission, $groupassign);
-            $statusmatch = $statusfilter === 'all'
-                || ($statusfilter === 'submitted' && (int)($submission->status ?? -1) === GROUPASSIGN_STATUS_SUBMITTED)
-                || ($statusfilter === 'late' && groupassign_submission_late($groupassign, $submission))
-                || ($statusfilter === 'notsubmitted' && !$submission);
-            if (!$namematch || !$statusmatch) {
-                continue;
-            }
-            $gradeaction = html_writer::link(new moodle_url('/mod/groupassign/view.php', [
-                'id' => $cm->id,
-                'action' => 'grade',
-                'groupid' => $group->id,
-            ]), get_string('gradebutton', 'groupassign'), ['class' => 'btn btn-sm btn-primary']);
-            $editsubmissionaction = html_writer::link(new moodle_url('/mod/groupassign/view.php', [
-                'id' => $cm->id,
-                'action' => 'grade',
-                'groupid' => $group->id,
-            ]), get_string('editsubmission', 'groupassign'));
-            $grantextensionaction = html_writer::link(new moodle_url('/mod/groupassign/view.php', [
-                'id' => $cm->id,
-                'action' => 'grade',
-                'groupid' => $group->id,
-            ]), get_string('grantsubmissionextension', 'groupassign'));
-            $nudgeaction = html_writer::link(new moodle_url('/message/index.php', ['user2' => $member->id]),
-                get_string('nudge', 'groupassign'), ['class' => 'btn btn-sm btn-outline-secondary']);
-            $actionmenu = html_writer::start_tag('details', ['class' => 'groupassign-row-actions'])
-                . html_writer::tag('summary', '...')
-                . html_writer::div(
-                    html_writer::div($gradeaction, 'mb-1')
-                    . html_writer::div($editsubmissionaction, 'mb-1')
-                    . html_writer::div($grantextensionaction, 'mb-1')
-                    . html_writer::div($nudgeaction),
-                    'small'
-                )
-                . html_writer::end_tag('details');
-            $table->data[] = [
-                html_writer::checkbox('selectedusers[]', $member->id, false),
-                fullname($member),
-                s($member->email),
-                format_string($group->name),
-                $status,
-                groupassign_grade_label($groupassign, $grade) . html_writer::div($gradeaction, 'mt-1'),
-                $submission && !empty($submission->timemodified) ? userdate($submission->timemodified) : '-',
-                groupassign_render_submission_content($submission, $context),
-                '-',
-                $grade && !empty($grade->timemodified) ? userdate($grade->timemodified) : '-',
-                ($grade && !empty($grade->feedback)) ? format_text($grade->feedback, $grade->feedbackformat) : '-',
-                groupassign_grade_label($groupassign, $grade) . html_writer::div($nudgeaction, 'mt-1'),
-                $actionmenu,
-            ];
-        }
+    foreach ($pagedrows as $row) {
+        $member = $row['member'];
+        $group = $row['group'];
+        $submission = $row['submission'];
+        $grade = $row['grade'];
+        $status = $row['status'];
+        $gradeaction = html_writer::link(new moodle_url('/mod/groupassign/view.php', [
+            'id' => $cm->id,
+            'action' => 'grade',
+            'groupid' => $group->id,
+        ]), get_string('gradebutton', 'groupassign'), ['class' => 'btn btn-sm btn-primary']);
+        $editsubmissionaction = html_writer::link(new moodle_url('/mod/groupassign/view.php', [
+            'id' => $cm->id,
+            'action' => 'grade',
+            'groupid' => $group->id,
+        ]), get_string('editsubmission', 'groupassign'));
+        $grantextensionaction = html_writer::link(new moodle_url('/mod/groupassign/view.php', [
+            'id' => $cm->id,
+            'action' => 'grade',
+            'groupid' => $group->id,
+        ]), get_string('grantsubmissionextension', 'groupassign'));
+        $nudgeaction = html_writer::link(new moodle_url('/message/index.php', ['user2' => $member->id]),
+            get_string('nudge', 'groupassign'), ['class' => 'btn btn-sm btn-outline-secondary']);
+        $actionmenu = html_writer::start_tag('details', ['class' => 'groupassign-row-actions'])
+            . html_writer::tag('summary', '...')
+            . html_writer::div(
+                html_writer::div($gradeaction, 'mb-1')
+                . html_writer::div($editsubmissionaction, 'mb-1')
+                . html_writer::div($grantextensionaction, 'mb-1')
+                . html_writer::div($nudgeaction),
+                'small'
+            )
+            . html_writer::end_tag('details');
+        $table->data[] = [
+            html_writer::checkbox('selectedusers[]', $member->id, false),
+            fullname($member),
+            s($member->email),
+            format_string($group->name),
+            $status,
+            groupassign_grade_label($groupassign, $grade) . html_writer::div($gradeaction, 'mt-1'),
+            $submission && !empty($submission->timemodified) ? userdate($submission->timemodified) : '-',
+            groupassign_render_submission_content($submission, $context),
+            '-',
+            $grade && !empty($grade->timemodified) ? userdate($grade->timemodified) : '-',
+            ($grade && !empty($grade->feedback)) ? format_text($grade->feedback, $grade->feedbackformat) : '-',
+            groupassign_grade_label($groupassign, $grade) . html_writer::div($nudgeaction, 'mt-1'),
+            $actionmenu,
+        ];
     }
 
     echo html_writer::div(
@@ -787,6 +984,14 @@ function groupassign_render_submissions_view($groupassign, $cm, $context): void 
         'mb-2 d-flex gap-2 align-items-center'
     );
     echo html_writer::table($table);
+    $pagingurl = new moodle_url('/mod/groupassign/view.php', [
+        'id' => $cm->id,
+        'action' => 'submissions',
+        'search' => $search,
+        'statusfilter' => $statusfilter,
+        'perpage' => $perpage,
+    ]);
+    echo $OUTPUT->paging_bar($totalrows, $page, $perpage, $pagingurl);
 }
 
 function groupassign_prepare_grade_form($groupassign, $cm, $context, int $groupid, array $editoroptions): ?array {
