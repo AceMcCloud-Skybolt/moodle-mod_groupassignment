@@ -4,6 +4,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->dirroot . '/group/lib.php');
+require_once($CFG->dirroot . '/calendar/lib.php');
 require_once($CFG->libdir . '/gradelib.php');
 
 define('GROUPASSIGN_FORMATION_SELFSELECT', 'selfselect');
@@ -48,6 +49,7 @@ function groupassign_add_instance($data, $mform = null) {
     groupassign_sync_groups($data);
     groupassign_save_peercriteria($data->id, $peercriteria);
     groupassign_grade_item_update($data);
+    groupassign_update_calendar($data);
 
     return $data->id;
 }
@@ -65,6 +67,7 @@ function groupassign_update_instance($data, $mform = null) {
     groupassign_sync_groups($data);
     groupassign_save_peercriteria($data->id, $peercriteria);
     groupassign_grade_item_update($data);
+    groupassign_update_calendar($data);
 
     return true;
 }
@@ -77,6 +80,7 @@ function groupassign_delete_instance($id) {
     }
 
     grade_update('mod/groupassign', $groupassign->course, 'mod', 'groupassign', $groupassign->id, 0, null, ['deleted' => 1]);
+    groupassign_delete_calendar_events($groupassign);
     if ($cm = get_coursemodule_from_instance('groupassign', $id, $groupassign->course, false)) {
         $context = context_module::instance($cm->id);
         get_file_storage()->delete_area_files($context->id, 'mod_groupassign');
@@ -161,6 +165,12 @@ function groupassign_reset_userdata($data): array {
             'selectionopen',
             'selectionclose',
         ], $data->timeshift, $data->courseid);
+        foreach ($groupassignments as $groupassign) {
+            $updated = $DB->get_record('groupassign', ['id' => $groupassign->id]);
+            if ($updated) {
+                groupassign_update_calendar($updated);
+            }
+        }
         $status[] = [
             'component' => $component,
             'item' => get_string('date'),
@@ -186,6 +196,80 @@ function groupassign_get_coursemodule_info($coursemodule) {
     }
 
     return $info;
+}
+
+function groupassign_calendar_event_definitions(): array {
+    return [
+        'due' => [
+            'field' => 'duedate',
+            'label' => get_string('calendareventdue', 'groupassign'),
+        ],
+        'cutoff' => [
+            'field' => 'cutoffdate',
+            'label' => get_string('calendareventcutoff', 'groupassign'),
+        ],
+        'gradingdue' => [
+            'field' => 'gradingduedate',
+            'label' => get_string('calendareventgradingdue', 'groupassign'),
+        ],
+    ];
+}
+
+function groupassign_update_calendar(stdClass $groupassign): void {
+    global $DB;
+
+    foreach (groupassign_calendar_event_definitions() as $eventtype => $definition) {
+        $existing = $DB->get_record('event', [
+            'modulename' => 'groupassign',
+            'instance' => $groupassign->id,
+            'eventtype' => $eventtype,
+        ]);
+        $timestart = (int)($groupassign->{$definition['field']} ?? 0);
+
+        if ($timestart <= 0) {
+            if ($existing) {
+                $event = calendar_event::load($existing->id);
+                $event->delete();
+            }
+            continue;
+        }
+
+        $eventdata = (object)[
+            'name' => clean_param($groupassign->name . ' - ' . $definition['label'], PARAM_TEXT),
+            'description' => $groupassign->intro ?? '',
+            'format' => $groupassign->introformat ?? FORMAT_HTML,
+            'courseid' => $groupassign->course,
+            'groupid' => 0,
+            'userid' => 0,
+            'modulename' => 'groupassign',
+            'instance' => $groupassign->id,
+            'eventtype' => $eventtype,
+            'timestart' => $timestart,
+            'timeduration' => 0,
+            'visible' => 1,
+            'timemodified' => time(),
+        ];
+
+        if ($existing) {
+            $event = calendar_event::load($existing->id);
+            $event->update($eventdata);
+        } else {
+            calendar_event::create($eventdata, false);
+        }
+    }
+}
+
+function groupassign_delete_calendar_events(stdClass $groupassign): void {
+    global $DB;
+
+    $events = $DB->get_records('event', [
+        'modulename' => 'groupassign',
+        'instance' => $groupassign->id,
+    ]);
+    foreach ($events as $eventrecord) {
+        $event = calendar_event::load($eventrecord->id);
+        $event->delete();
+    }
 }
 
 function groupassign_grade_item_update(stdClass $groupassign, $grades = null) {
@@ -318,11 +402,7 @@ function groupassign_normalise_settings(stdClass $data): void {
         $data->activity = (string)$data->activity;
     }
     $data->activityformat = (int)($data->activityformat ?? FORMAT_HTML);
-    $data->submissionattachments = empty($data->submissionattachments) ? 0 : 1;
-    $data->alwaysshowdescription = empty($data->alwaysshowdescription) ? 0 : 1;
-    $data->timelimit = max(0, (int)($data->timelimit ?? 0));
     $data->formationmode = $data->formationmode ?? GROUPASSIGN_FORMATION_SELFSELECT;
-    $data->managedgrouping = $data->formationmode === GROUPASSIGN_FORMATION_EXISTING ? 0 : 1;
     $data->numgroups = max(0, (int)($data->numgroups ?? 0));
     $data->groupnameprefix = trim((string)($data->groupnameprefix ?? ''));
     $data->groupnamesuffix = in_array(($data->groupnamesuffix ?? GROUPASSIGN_SUFFIX_NUMBERS),
@@ -341,30 +421,14 @@ function groupassign_normalise_settings(stdClass $data): void {
     $data->peerenabled = empty($data->peerenabled) ? 0 : 1;
     $data->peerselfassessment = empty($data->peerselfassessment) ? 0 : 1;
     $data->peercomments = empty($data->peercomments) ? 0 : 1;
-    $data->peeranonymous = empty($data->peeranonymous) ? 0 : 1;
-    $data->peerstudentresponse = empty($data->peerstudentresponse) ? 0 : 1;
     $data->submissiononlinetext = empty($data->submissiononlinetext) ? 0 : 1;
     $data->submissionfile = empty($data->submissionfile) ? 0 : 1;
     $data->submissionfiletypes = trim((string)($data->submissionfiletypes ?? ''));
     $data->wordlimit = max(0, (int)($data->wordlimit ?? 0));
     $data->maxfiles = max(1, (int)($data->maxfiles ?? 5));
     $data->maxbytes = max(0, (int)($data->maxbytes ?? 0));
-    $data->submissiondrafts = empty($data->submissiondrafts) ? 0 : 1;
     $data->requiresubmissionstatement = empty($data->requiresubmissionstatement) ? 0 : 1;
-    $data->maxattempts = (int)($data->maxattempts ?? -1);
-    $attemptmethods = ['manual', 'automatic', 'untilpass'];
-    $data->attemptreopenmethod = in_array(($data->attemptreopenmethod ?? 'manual'), $attemptmethods, true)
-        ? $data->attemptreopenmethod
-        : 'manual';
     $data->peerrequirejustification = empty($data->peerrequirejustification) ? 0 : 1;
-    $data->sendnotifications = empty($data->sendnotifications) ? 0 : 1;
-    $data->sendlatenotifications = empty($data->sendlatenotifications) ? 0 : 1;
-    $data->sendstudentnotifications = empty($data->sendstudentnotifications) ? 0 : 1;
-    $data->blindmarking = empty($data->blindmarking) ? 0 : 1;
-    $data->hidegrader = empty($data->hidegrader) ? 0 : 1;
-    $data->markingworkflow = empty($data->markingworkflow) ? 0 : 1;
-    $data->markingallocation = empty($data->markingallocation) ? 0 : 1;
-    $data->markinganonymous = empty($data->markinganonymous) ? 0 : 1;
     if (property_exists($data, 'feedbackcommentsenabled')) {
         unset($data->feedbackcommentsenabled);
     }
@@ -542,7 +606,7 @@ function groupassign_save_peercriteria(int $groupassignid, array $criteria): voi
 function groupassign_sync_groups(stdClass $groupassign): void {
     global $DB;
 
-    if ($groupassign->formationmode === GROUPASSIGN_FORMATION_EXISTING && empty($groupassign->managedgrouping)) {
+    if ($groupassign->formationmode === GROUPASSIGN_FORMATION_EXISTING) {
         groupassign_track_existing_grouping($groupassign);
         return;
     }

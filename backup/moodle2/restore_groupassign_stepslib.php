@@ -49,8 +49,37 @@ class restore_groupassign_activity_structure_step extends restore_activity_struc
             $data->grade = $scaleid ? -$scaleid : 0;
         }
 
+        foreach ($this->legacy_groupassign_fields() as $fieldname) {
+            if (property_exists($data, $fieldname)) {
+                unset($data->{$fieldname});
+            }
+        }
+
         $newitemid = $DB->insert_record('groupassign', $data);
         $this->apply_activity_instance($newitemid);
+    }
+
+    private function legacy_groupassign_fields(): array {
+        return [
+            'timelimit',
+            'alwaysshowdescription',
+            'submissionattachments',
+            'submissiondrafts',
+            'maxattempts',
+            'attemptreopenmethod',
+            'managedgrouping',
+            'peeranonymous',
+            'peerstudentresponse',
+            'sendnotifications',
+            'sendlatenotifications',
+            'sendstudentnotifications',
+            'blindmarking',
+            'hidegrader',
+            'markingworkflow',
+            'markingallocation',
+            'markinganonymous',
+            'completionreceivegrade',
+        ];
     }
 
     protected function process_groupassign_group($data) {

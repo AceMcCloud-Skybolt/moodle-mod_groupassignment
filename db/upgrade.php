@@ -4,7 +4,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 function xmldb_groupassign_upgrade($oldversion) {
-    global $DB;
+    global $DB, $CFG;
 
     $dbman = $DB->get_manager();
 
@@ -300,6 +300,49 @@ function xmldb_groupassign_upgrade($oldversion) {
         }
 
         upgrade_mod_savepoint(true, 2026061202, 'groupassign');
+    }
+
+    if ($oldversion < 2026061605) {
+        $table = new xmldb_table('groupassign');
+        $legacyfields = [
+            'timelimit',
+            'alwaysshowdescription',
+            'submissionattachments',
+            'submissiondrafts',
+            'maxattempts',
+            'attemptreopenmethod',
+            'managedgrouping',
+            'peeranonymous',
+            'peerstudentresponse',
+            'sendnotifications',
+            'sendlatenotifications',
+            'sendstudentnotifications',
+            'blindmarking',
+            'hidegrader',
+            'markingworkflow',
+            'markingallocation',
+            'markinganonymous',
+            'completionreceivegrade',
+        ];
+
+        foreach ($legacyfields as $fieldname) {
+            $field = new xmldb_field($fieldname);
+            if ($dbman->field_exists($table, $field)) {
+                $dbman->drop_field($table, $field);
+            }
+        }
+
+        upgrade_mod_savepoint(true, 2026061605, 'groupassign');
+    }
+
+    if ($oldversion < 2026061606) {
+        require_once($CFG->dirroot . '/mod/groupassign/lib.php');
+        $groupassignments = $DB->get_records('groupassign');
+        foreach ($groupassignments as $groupassign) {
+            groupassign_update_calendar($groupassign);
+        }
+
+        upgrade_mod_savepoint(true, 2026061606, 'groupassign');
     }
 
     return true;

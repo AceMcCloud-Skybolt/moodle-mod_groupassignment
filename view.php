@@ -410,6 +410,36 @@ function groupassign_peer_rating_options(string $ratingtype = 'fourlevel'): arra
     ];
 }
 
+function groupassign_peer_ratingtype_map($groupassign): array {
+    global $DB;
+
+    $records = $DB->get_records('groupassign_peercriteria', ['groupassignid' => $groupassign->id], '', 'id,ratingtype');
+    $ratingtypes = [];
+    foreach ($records as $record) {
+        $ratingtypes[(int)$record->id] = $record->ratingtype ?? 'fourlevel';
+    }
+    return $ratingtypes;
+}
+
+function groupassign_normalise_peer_rating(float $rating, string $ratingtype): ?float {
+    if ($ratingtype === 'marks5') {
+        $minimum = 0;
+        $maximum = 5;
+    } else if ($ratingtype === 'satisfactory') {
+        $minimum = 1;
+        $maximum = 3;
+    } else {
+        $minimum = 1;
+        $maximum = 4;
+    }
+
+    if ($rating < $minimum || $rating > $maximum) {
+        return null;
+    }
+
+    return ($rating - $minimum) / max($maximum - $minimum, 1);
+}
+
 function groupassign_get_peercriteria($groupassign): array {
     global $DB;
 
@@ -483,43 +513,8 @@ function groupassign_peer_review_group_flag($groupassign, int $groupid): string 
         'groupassignid' => $groupassign->id,
         'groupid' => $groupid,
     ]);
-    if (!$reviews) {
-        return get_string('peerflag:clear', 'groupassign');
-    }
 
-    $received = [];
-    $given = [];
-    foreach ($reviews as $review) {
-        $received[$review->revieweeid][] = (float)$review->rating;
-        $given[$review->reviewerid][] = (float)$review->rating;
-    }
-
-    $receivedavgs = [];
-    foreach ($received as $userid => $ratings) {
-        $receivedavgs[$userid] = array_sum($ratings) / max(count($ratings), 1);
-    }
-    if (count($receivedavgs) >= 2) {
-        $minavg = min($receivedavgs);
-        $maxavg = max($receivedavgs);
-        if ($minavg <= 2.0 && ($maxavg - $minavg) >= 1.5) {
-            return get_string('peerflag:concern', 'groupassign');
-        }
-    }
-
-    $givenavgs = [];
-    foreach ($given as $userid => $ratings) {
-        $givenavgs[$userid] = array_sum($ratings) / max(count($ratings), 1);
-    }
-    if (count($givenavgs) >= 2) {
-        $median = (array_sum($givenavgs) / count($givenavgs));
-        foreach ($givenavgs as $avg) {
-            if ($avg <= ($median - 1.2)) {
-                return get_string('peerflag:followup', 'groupassign');
-            }
-        }
-    }
-
-    return get_string('peerflag:clear', 'groupassign');
+    return groupassign_peer_review_flag_from_reviews($reviews, groupassign_peer_ratingtype_map($groupassign));
 }
 
 function groupassign_peer_review_completion_map($groupassign, array $groups): array {
@@ -580,6 +575,7 @@ function groupassign_peer_review_flags_map($groupassign, array $groups): array {
     $params['groupassignid'] = $groupassign->id;
     $reviews = $DB->get_records_select('groupassign_peerreviews',
         "groupassignid = :groupassignid AND groupid $insql", $params);
+    $ratingtypes = groupassign_peer_ratingtype_map($groupassign);
 
     $bygroup = [];
     foreach ($reviews as $review) {
@@ -587,13 +583,14 @@ function groupassign_peer_review_flags_map($groupassign, array $groups): array {
     }
 
     foreach ($groups as $group) {
-        $flags[(int)$group->id] = groupassign_peer_review_flag_from_reviews($bygroup[(int)$group->id] ?? []);
+        $flags[(int)$group->id] = groupassign_peer_review_flag_from_reviews($bygroup[(int)$group->id] ?? [],
+            $ratingtypes);
     }
 
     return $flags;
 }
 
-function groupassign_peer_review_flag_from_reviews(array $reviews): string {
+function groupassign_peer_review_flag_from_reviews(array $reviews, array $ratingtypes = []): string {
     if (!$reviews) {
         return get_string('peerflag:clear', 'groupassign');
     }
@@ -601,8 +598,13 @@ function groupassign_peer_review_flag_from_reviews(array $reviews): string {
     $received = [];
     $given = [];
     foreach ($reviews as $review) {
-        $received[$review->revieweeid][] = (float)$review->rating;
-        $given[$review->reviewerid][] = (float)$review->rating;
+        $rating = groupassign_normalise_peer_rating((float)$review->rating,
+            $ratingtypes[(int)$review->criteriaid] ?? 'fourlevel');
+        if ($rating === null) {
+            continue;
+        }
+        $received[$review->revieweeid][] = $rating;
+        $given[$review->reviewerid][] = $rating;
     }
 
     $receivedavgs = [];
@@ -612,7 +614,7 @@ function groupassign_peer_review_flag_from_reviews(array $reviews): string {
     if (count($receivedavgs) >= 2) {
         $minavg = min($receivedavgs);
         $maxavg = max($receivedavgs);
-        if ($minavg <= 2.0 && ($maxavg - $minavg) >= 1.5) {
+        if ($minavg <= 0.35 && ($maxavg - $minavg) >= 0.35) {
             return get_string('peerflag:concern', 'groupassign');
         }
     }
@@ -622,9 +624,9 @@ function groupassign_peer_review_flag_from_reviews(array $reviews): string {
         $givenavgs[$userid] = array_sum($ratings) / max(count($ratings), 1);
     }
     if (count($givenavgs) >= 2) {
-        $median = (array_sum($givenavgs) / count($givenavgs));
+        $mean = array_sum($givenavgs) / count($givenavgs);
         foreach ($givenavgs as $avg) {
-            if ($avg <= ($median - 1.2)) {
+            if ($avg <= ($mean - 0.25)) {
                 return get_string('peerflag:followup', 'groupassign');
             }
         }
