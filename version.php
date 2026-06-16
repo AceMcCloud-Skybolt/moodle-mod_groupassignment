@@ -4,7 +4,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'mod_groupassign';
-$plugin->version = 2026061501;
+$plugin->version = 2026061603;
 $plugin->requires = 2024100700;
 $plugin->maturity = MATURITY_ALPHA;
-$plugin->release = '0.1.6';
+$plugin->release = '0.1.10';

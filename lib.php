@@ -28,7 +28,7 @@ function groupassign_supports($feature) {
         case FEATURE_ADVANCED_GRADING:
             return false;
         case FEATURE_BACKUP_MOODLE2:
-            return false;
+            return true;
         case FEATURE_MOD_PURPOSE:
             return MOD_PURPOSE_ASSESSMENT;
         default:
@@ -92,6 +92,85 @@ function groupassign_delete_instance($id) {
     return true;
 }
 
+function groupassign_reset_course_form_definition(&$mform): void {
+    $mform->addElement('header', 'groupassignheader', get_string('modulenameplural', 'groupassign'));
+    $mform->addElement('static', 'groupassigndelete', get_string('delete'));
+    $mform->addElement('advcheckbox', 'reset_groupassign_submissions',
+        get_string('resetgroupassignsubmissions', 'groupassign'));
+    $mform->addElement('advcheckbox', 'reset_groupassign_memberships',
+        get_string('resetgroupassignmemberships', 'groupassign'));
+}
+
+function groupassign_reset_course_form_defaults($course): array {
+    return [
+        'reset_groupassign_submissions' => 1,
+        'reset_groupassign_memberships' => 0,
+    ];
+}
+
+function groupassign_reset_userdata($data): array {
+    global $DB;
+
+    $status = [];
+    $component = get_string('modulenameplural', 'groupassign');
+
+    $groupassignments = $DB->get_records('groupassign', ['course' => $data->courseid]);
+    if (!empty($data->reset_groupassign_submissions)) {
+        foreach ($groupassignments as $groupassign) {
+            $cm = get_coursemodule_from_instance('groupassign', $groupassign->id, $data->courseid, false);
+            if ($cm) {
+                $context = context_module::instance($cm->id);
+                get_file_storage()->delete_area_files($context->id, 'mod_groupassign', 'submission');
+            }
+            $DB->delete_records('groupassign_submissions', ['groupassignid' => $groupassign->id]);
+            $DB->delete_records('groupassign_grades', ['groupassignid' => $groupassign->id]);
+            $DB->delete_records('groupassign_membergrades', ['groupassignid' => $groupassign->id]);
+            $DB->delete_records('groupassign_peerreviews', ['groupassignid' => $groupassign->id]);
+            groupassign_grade_item_update($groupassign, 'reset');
+        }
+        $status[] = [
+            'component' => $component,
+            'item' => get_string('resetgroupassignsubmissions', 'groupassign'),
+            'error' => false,
+        ];
+    }
+
+    if (!empty($data->reset_groupassign_memberships)) {
+        foreach ($groupassignments as $groupassign) {
+            $trackedgroups = $DB->get_records('groupassign_groups', ['groupassignid' => $groupassign->id]);
+            foreach ($trackedgroups as $trackedgroup) {
+                $members = groups_get_members($trackedgroup->groupid, 'u.id');
+                foreach ($members as $member) {
+                    groups_remove_member($trackedgroup->groupid, $member->id);
+                }
+            }
+        }
+        $status[] = [
+            'component' => $component,
+            'item' => get_string('resetgroupassignmemberships', 'groupassign'),
+            'error' => false,
+        ];
+    }
+
+    if (!empty($data->timeshift)) {
+        shift_course_mod_dates('groupassign', [
+            'allowsubmissionsfromdate',
+            'duedate',
+            'cutoffdate',
+            'gradingduedate',
+            'selectionopen',
+            'selectionclose',
+        ], $data->timeshift, $data->courseid);
+        $status[] = [
+            'component' => $component,
+            'item' => get_string('date'),
+            'error' => false,
+        ];
+    }
+
+    return $status;
+}
+
 function groupassign_get_coursemodule_info($coursemodule) {
     global $DB;
 
@@ -112,10 +191,23 @@ function groupassign_get_coursemodule_info($coursemodule) {
 function groupassign_grade_item_update(stdClass $groupassign, $grades = null) {
     $item = [
         'itemname' => clean_param($groupassign->name, PARAM_NOTAGS),
-        'gradetype' => GRADE_TYPE_VALUE,
-        'grademax' => !empty($groupassign->grade) ? $groupassign->grade : 100,
-        'grademin' => 0,
     ];
+
+    if ((int)$groupassign->grade > 0) {
+        $item['gradetype'] = GRADE_TYPE_VALUE;
+        $item['grademax'] = (int)$groupassign->grade;
+        $item['grademin'] = 0;
+    } else if ((int)$groupassign->grade < 0) {
+        $item['gradetype'] = GRADE_TYPE_SCALE;
+        $item['scaleid'] = abs((int)$groupassign->grade);
+    } else {
+        $item['gradetype'] = GRADE_TYPE_NONE;
+    }
+
+    if ($grades === 'reset') {
+        $item['reset'] = true;
+        $grades = null;
+    }
 
     return grade_update('mod/groupassign', $groupassign->course, 'mod', 'groupassign', $groupassign->id, 0, $grades, $item);
 }

@@ -11,6 +11,8 @@ $PAGE->set_url('/mod/groupassign/index.php', ['id' => $id]);
 $PAGE->set_title(get_string('modulenameplural', 'groupassign'));
 $PAGE->set_heading(format_string($course->fullname));
 
+\mod_groupassign\event\course_module_instance_list_viewed::create_from_course($course)->trigger();
+
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('modulenameplural', 'groupassign'));
 

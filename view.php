@@ -24,6 +24,13 @@ require_once($CFG->libdir . '/completionlib.php');
 $completion = new completion_info($course);
 $completion->set_module_viewed($cm);
 
+$viewevent = \mod_groupassign\event\course_module_viewed::create([
+    'context' => $context,
+    'objectid' => $groupassign->id,
+]);
+$viewevent->add_record_snapshot('groupassign', $groupassign);
+$viewevent->trigger();
+
 $PAGE->set_url('/mod/groupassign/view.php', ['id' => $cm->id]);
 $PAGE->set_title(format_string($groupassign->name));
 $PAGE->set_heading(format_string($course->fullname));
@@ -166,6 +173,34 @@ function groupassign_get_submission($groupassign, int $groupid) {
     ]);
 }
 
+function groupassign_group_has_submission($groupassign, int $groupid): bool {
+    return (bool)groupassign_get_submission($groupassign, $groupid);
+}
+
+function groupassign_user_has_submitted_group($groupassign, int $userid): bool {
+    foreach (groupassign_get_my_groups($groupassign, $userid) as $group) {
+        if (groupassign_group_has_submission($groupassign, (int)$group->id)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function groupassign_action_button($cm, string $action, int $groupid, string $label, string $classes): string {
+    $form = html_writer::start_tag('form', [
+        'method' => 'post',
+        'action' => new moodle_url('/mod/groupassign/view.php'),
+        'class' => 'd-inline',
+    ]);
+    $form .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'id', 'value' => $cm->id]);
+    $form .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'action', 'value' => $action]);
+    $form .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'groupid', 'value' => $groupid]);
+    $form .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
+    $form .= html_writer::tag('button', $label, ['type' => 'submit', 'class' => $classes]);
+    $form .= html_writer::end_tag('form');
+    return $form;
+}
+
 function groupassign_get_grade($groupassign, int $groupid) {
     global $DB;
     return $DB->get_record('groupassign_grades', [
@@ -198,7 +233,27 @@ function groupassign_grade_label($groupassign, $grade): string {
     if (!$grade || $grade->grade === null) {
         return '-';
     }
+    if ((int)$groupassign->grade < 0) {
+        $scale = grade_scale::fetch(['id' => abs((int)$groupassign->grade)]);
+        if ($scale) {
+            $items = $scale->load_items();
+            $index = (int)$grade->grade - 1;
+            return $items[$index] ?? format_float($grade->grade, 0);
+        }
+        return format_float($grade->grade, 0);
+    }
+    if ((int)$groupassign->grade === 0) {
+        return '-';
+    }
     return format_float($grade->grade, 2) . ' / ' . format_float($groupassign->grade, 2);
+}
+
+function groupassign_submitted_grade_value($value, $groupassign): ?float {
+    if ((int)$groupassign->grade === 0 || $value === null || $value === ''
+            || ((int)$groupassign->grade < 0 && (int)$value === 0)) {
+        return null;
+    }
+    return (int)$groupassign->grade < 0 ? (float)(int)$value : (float)$value;
 }
 
 function groupassign_render_submission_content($submission, $context): string {
@@ -803,7 +858,7 @@ function groupassign_process_grade_form($groupassign, $cm, $context, int $groupi
             'groupassignid' => $groupassign->id,
             'groupid' => $groupid,
             'graderid' => $USER->id,
-            'grade' => $data->grade === '' ? null : (float)$data->grade,
+            'grade' => groupassign_submitted_grade_value($data->grade ?? null, $groupassign),
             'feedback' => $data->feedbackeditor['text'],
             'feedbackformat' => $data->feedbackeditor['format'],
             'timemodified' => $now,
@@ -811,9 +866,21 @@ function groupassign_process_grade_form($groupassign, $cm, $context, int $groupi
         if ($grade) {
             $record->id = $grade->id;
             $DB->update_record('groupassign_grades', $record);
+            $gradeid = $grade->id;
         } else {
             $record->timecreated = $now;
-            $DB->insert_record('groupassign_grades', $record);
+            $gradeid = $DB->insert_record('groupassign_grades', $record);
+        }
+
+        if ((int)$groupassign->grade === 0) {
+            groupassign_update_grades($groupassign);
+            \mod_groupassign\event\submission_graded::create([
+                'context' => $context,
+                'objectid' => $gradeid,
+                'other' => ['groupid' => $groupid],
+            ])->trigger();
+            redirect($gradeurl, get_string('gradesaved', 'groupassign'), null,
+                \core\output\notification::NOTIFY_SUCCESS);
         }
 
         foreach ($members as $member) {
@@ -821,9 +888,10 @@ function groupassign_process_grade_form($groupassign, $cm, $context, int $groupi
             $feedbackfield = 'memberfeedback_' . $member->id;
             $membergradevalue = isset($data->{$gradefield}) ? trim((string)$data->{$gradefield}) : '';
             $memberfeedback = isset($data->{$feedbackfield}) ? trim((string)$data->{$feedbackfield}) : '';
+            $submittedmembergrade = groupassign_submitted_grade_value($membergradevalue, $groupassign);
             $existing = groupassign_get_membergrade($groupassign->id, $member->id);
 
-            if ($membergradevalue === '' && $memberfeedback === '') {
+            if ($submittedmembergrade === null && $memberfeedback === '') {
                 if ($existing) {
                     $DB->delete_records('groupassign_membergrades', ['id' => $existing->id]);
                 }
@@ -835,7 +903,7 @@ function groupassign_process_grade_form($groupassign, $cm, $context, int $groupi
                 'groupid' => $groupid,
                 'userid' => $member->id,
                 'graderid' => $USER->id,
-                'grade' => $membergradevalue === '' ? null : (float)$membergradevalue,
+                'grade' => $submittedmembergrade,
                 'feedback' => $memberfeedback,
                 'feedbackformat' => FORMAT_PLAIN,
                 'timemodified' => $now,
@@ -850,6 +918,11 @@ function groupassign_process_grade_form($groupassign, $cm, $context, int $groupi
         }
 
         groupassign_update_grades($groupassign);
+        \mod_groupassign\event\submission_graded::create([
+            'context' => $context,
+            'objectid' => $gradeid,
+            'other' => ['groupid' => $groupid],
+        ])->trigger();
         redirect($gradeurl, get_string('gradesaved', 'groupassign'), null,
             \core\output\notification::NOTIFY_SUCCESS);
     }
@@ -977,6 +1050,11 @@ function groupassign_process_peer_review_form($groupassign, $cm, $context): ?arr
                 }
             }
         }
+        \mod_groupassign\event\peer_review_saved::create([
+            'context' => $context,
+            'objectid' => $groupassign->id,
+            'other' => ['groupid' => $group->id],
+        ])->trigger();
         redirect(new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id]),
             get_string('peerreviewsaved', 'groupassign'), null, \core\output\notification::NOTIFY_SUCCESS);
     }
@@ -1068,6 +1146,11 @@ function groupassign_process_group_submission_form($groupassign, $cm, $context, 
             file_save_draft_area_files($data->submissionfiles, $context->id, 'mod_groupassign', 'submission',
                 $submissionid, $fileoptions);
         }
+        \mod_groupassign\event\submission_saved::create([
+            'context' => $context,
+            'objectid' => $submissionid,
+            'other' => ['groupid' => $group->id],
+        ])->trigger();
         redirect($PAGE->url, get_string('submissionsaved', 'groupassign'), null,
             \core\output\notification::NOTIFY_SUCCESS);
     }
@@ -1110,6 +1193,7 @@ function groupassign_render_student_view($groupassign, $cm, $context, $editoropt
     $mygroups = groupassign_get_my_groups($groupassign, $USER->id);
     $mygroupids = array_map(fn($group) => (int)$group->id, $mygroups);
     $isopen = groupassign_selection_open($groupassign);
+    $haslockedgroup = groupassign_user_has_submitted_group($groupassign, $USER->id);
 
     echo groupassign_render_activity_details($groupassign, $cm, $context);
     echo $OUTPUT->heading(get_string('choosegroup', 'groupassign'), 3);
@@ -1167,24 +1251,18 @@ function groupassign_render_student_view($groupassign, $cm, $context, $editoropt
 
         $actions = [];
         if ($isopen && $groupassign->allowstudentjoin && !$iscurrent
-                && !$isfull) {
+                && !$isfull && !$haslockedgroup) {
             $label = $mygroups ? get_string('switchgroup', 'groupassign') : get_string('join', 'groupassign');
-            $actions[] = html_writer::link(new moodle_url('/mod/groupassign/view.php', [
-                'id' => $cm->id,
-                'action' => 'join',
-                'groupid' => $group->id,
-                'sesskey' => sesskey(),
-            ]), $label, ['class' => 'btn btn-primary me-2']);
+            $actions[] = groupassign_action_button($cm, 'join', (int)$group->id, $label, 'btn btn-primary me-2');
         } else if ($isopen && $groupassign->allowstudentjoin && !$iscurrent && $isfull) {
             $actions[] = html_writer::span(get_string('groupfull', 'groupassign'), 'btn btn-secondary disabled me-2');
         }
-        if ($isopen && $groupassign->allowstudentleave && $iscurrent) {
-            $actions[] = html_writer::link(new moodle_url('/mod/groupassign/view.php', [
-                'id' => $cm->id,
-                'action' => 'leave',
-                'groupid' => $group->id,
-                'sesskey' => sesskey(),
-            ]), get_string('leave', 'groupassign'), ['class' => 'btn btn-secondary me-2']);
+        if ($isopen && $groupassign->allowstudentleave && $iscurrent && !$haslockedgroup) {
+            $actions[] = groupassign_action_button($cm, 'leave', (int)$group->id, get_string('leave', 'groupassign'),
+                'btn btn-secondary me-2');
+        } else if ($iscurrent && $haslockedgroup) {
+            $actions[] = html_writer::span(get_string('groupmembershiplocked', 'groupassign'),
+                'badge bg-light text-dark border');
         }
         echo $actions ? html_writer::div(implode(' ', $actions), 'mt-3') : '';
         echo html_writer::end_div();
@@ -1237,6 +1315,10 @@ if ($action !== 'view' && $action !== 'submissions' && $action !== 'grade' && $a
     if ($action === 'join' && $groupid && $groupassign->allowstudentjoin) {
         $groups = groupassign_get_groups($groupassign);
         if (isset($groups[$groupid])) {
+            if (groupassign_user_has_submitted_group($groupassign, $USER->id)) {
+                redirect($PAGE->url, get_string('groupmembershiplocked', 'groupassign'), null,
+                    \core\output\notification::NOTIFY_WARNING);
+            }
             $count = groupassign_member_count($groupid);
             if (!empty($groupassign->maxmembers) && $count >= $groupassign->maxmembers) {
                 redirect($PAGE->url, get_string('groupfull', 'groupassign'), null,
@@ -1244,17 +1326,35 @@ if ($action !== 'view' && $action !== 'submissions' && $action !== 'grade' && $a
             }
             groupassign_remove_user_from_activity_groups($groupassign, $USER->id);
             groups_add_member($groupid, $USER->id);
+            \mod_groupassign\event\group_joined::create([
+                'context' => $context,
+                'objectid' => $groupid,
+                'other' => ['groupassignid' => $groupassign->id],
+            ])->trigger();
             redirect($PAGE->url, get_string('groupjoined', 'groupassign'), null, \core\output\notification::NOTIFY_SUCCESS);
         }
     } else if ($action === 'leave' && $groupid && $groupassign->allowstudentleave) {
         $mygroups = groupassign_get_my_groups($groupassign, $USER->id);
         if (isset($mygroups[$groupid])) {
+            if (groupassign_group_has_submission($groupassign, $groupid)) {
+                redirect($PAGE->url, get_string('groupmembershiplocked', 'groupassign'), null,
+                    \core\output\notification::NOTIFY_WARNING);
+            }
             groups_remove_member($groupid, $USER->id);
+            \mod_groupassign\event\group_left::create([
+                'context' => $context,
+                'objectid' => $groupid,
+                'other' => ['groupassignid' => $groupassign->id],
+            ])->trigger();
             redirect($PAGE->url, get_string('groupleft', 'groupassign'), null, \core\output\notification::NOTIFY_SUCCESS);
         }
         redirect($PAGE->url, get_string('invalidgroupid', 'groupassign'), null, \core\output\notification::NOTIFY_ERROR);
     } else if ($action === 'create' && $groupassign->allowstudentcreate) {
         if (trim($groupname) !== '') {
+            if (groupassign_user_has_submitted_group($groupassign, $USER->id)) {
+                redirect($PAGE->url, get_string('groupmembershiplocked', 'groupassign'), null,
+                    \core\output\notification::NOTIFY_WARNING);
+            }
             if (empty($groupassign->groupingid)) {
                 groupassign_sync_groups($groupassign);
                 $groupassign = $DB->get_record('groupassign', ['id' => $groupassign->id], '*', MUST_EXIST);
@@ -1270,6 +1370,11 @@ if ($action !== 'view' && $action !== 'submissions' && $action !== 'grade' && $a
             groupassign_remove_user_from_activity_groups($groupassign, $USER->id);
             groups_add_member($newgroupid, $USER->id);
             groupassign_track_group($groupassign->id, $newgroupid, count(groupassign_get_groups($groupassign)) + 1);
+            \mod_groupassign\event\group_created::create([
+                'context' => $context,
+                'objectid' => $newgroupid,
+                'other' => ['groupassignid' => $groupassign->id],
+            ])->trigger();
             redirect($PAGE->url, get_string('groupcreated', 'groupassign'), null, \core\output\notification::NOTIFY_SUCCESS);
         }
     }
