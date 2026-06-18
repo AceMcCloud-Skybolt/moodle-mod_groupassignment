@@ -29,7 +29,7 @@ For a non-code handoff explaining why this activity is needed, what problems it 
 ## Current prototype slice
 
 - Appears in the Moodle activity picker as **Group assignment**.
-- Provides Assignment-like availability, submission, feedback, grade, notification, completion, and advanced grading entry points.
+- Provides Assignment-like availability, submission, feedback, gradebook, calendar/timeline, backup/restore, and reporting entry points.
 - Provides group formation settings:
   - student self-selection
   - teacher-managed blank group creation
@@ -42,26 +42,28 @@ For a non-code handoff explaining why this activity is needed, what problems it 
 - Teacher dashboard shows group health cards, collapsible group/member views, a grading summary, peer assessment flags, and direct action buttons.
 - Submissions view follows the native Moodle Assignment table pattern, with search, status filtering, quick grading, row actions, grade, and nudge controls.
 - Student view lets students join/leave available groups, submit online text/files, and complete structured peer/self review.
-- Peer assessment criteria can include title, description, scoring type, comments, justification, anonymous release, and student response options.
+- Peer assessment criteria can include title, description, scoring type, comments, and required justification.
 - Group grading supports a shared group grade with individual adjustment fields for teacher-controlled exceptions.
 
 ## Screenshots
 
+These screenshots use a synthetic local demo course and demo users only.
+
 | Dashboard overview | Settings and group setup |
 | --- | --- |
-| ![Dashboard overview](docs/screenshots/01-dashboard-overview.png) | ![Settings and group setup](docs/screenshots/02-settings-group-setup.png) |
+| ![Dashboard overview](docs/screenshots/01-staff-dashboard-overview.png) | ![Settings and group setup](docs/screenshots/02-staff-settings-workflow.png) |
 
-| Peer assessment setup | Submissions queue |
+| Submissions queue | Group grading |
 | --- | --- |
-| ![Peer assessment setup](docs/screenshots/03-peer-assessment-settings.png) | ![Submissions queue](docs/screenshots/04-submissions-table.png) |
+| ![Submissions queue](docs/screenshots/03-staff-submissions-queue.png) | ![Group grading](docs/screenshots/04-staff-grading-adjustments.png) |
 
-| Group grading | Peer dashboard flags |
+| Peer dashboard flags | Student submission flow |
 | --- | --- |
-| ![Group grading](docs/screenshots/05-grading-adjustments.png) | ![Peer dashboard flags](docs/screenshots/06-peer-dashboard-flags.png) |
+| ![Peer dashboard flags](docs/screenshots/05-peer-dashboard-flags.png) | ![Student submission flow](docs/screenshots/06-student-submission-flow.png) |
 
-| Student submission flow | Student peer review |
+| Student peer review |
 | --- | --- |
-| ![Student submission flow](docs/screenshots/07-student-submission-flow.png) | ![Student peer review](docs/screenshots/08-student-peer-review.png) |
+| ![Student peer review](docs/screenshots/07-student-peer-review.png) |
 
 ## Design direction
 
@@ -69,7 +71,7 @@ This prototype should keep Moodle's native Assignment mental model while reducin
 
 ## Still to harden
 
-- Calendar/timeline events.
-- Backup/restore.
-- Broader parity with Assignment row actions and extension workflows.
-- Automated tests and developer review of Moodle API edge cases.
+- Gradebook scale/no-grade workflows need further developer review and smoke testing.
+- Course copy, reset, and backup/restore should be tested with realistic teaching data.
+- Notifications, extension workflows, and richer Assignment-style row actions remain deferred.
+- Automated PHPUnit/Behat tests and renderer/table refactors remain future hardening.
