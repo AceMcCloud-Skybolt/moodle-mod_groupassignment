@@ -41,6 +41,11 @@ function groupassign_add_instance($data, $mform = null) {
     global $DB;
 
     $peercriteria = groupassign_extract_peercriteria($data);
+    if (!$peercriteria) {
+        // New instances always start with the default criteria set; the getter
+        // in view.php is read-only and never seeds.
+        $peercriteria = groupassign_default_peercriteria();
+    }
     $draftitems = groupassign_extract_editor_fields($data);
     groupassign_normalise_settings($data);
     $data->timemodified = time();

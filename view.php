@@ -452,14 +452,8 @@ function groupassign_normalise_peer_rating(float $rating, string $ratingtype): ?
 function groupassign_get_peercriteria($groupassign): array {
     global $DB;
 
-    $criteria = $DB->get_records('groupassign_peercriteria',
+    return $DB->get_records('groupassign_peercriteria',
         ['groupassignid' => $groupassign->id, 'archived' => 0], 'sortorder ASC');
-    if (!$criteria) {
-        groupassign_save_peercriteria($groupassign->id, groupassign_default_peercriteria());
-        $criteria = $DB->get_records('groupassign_peercriteria',
-            ['groupassignid' => $groupassign->id, 'archived' => 0], 'sortorder ASC');
-    }
-    return $criteria;
 }
 
 function groupassign_get_reviewable_members($groupassign, int $groupid, int $userid): array {
