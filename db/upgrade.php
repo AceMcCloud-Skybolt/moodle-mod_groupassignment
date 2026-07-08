@@ -345,5 +345,20 @@ function xmldb_groupassign_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026061606, 'groupassign');
     }
 
+    if ($oldversion < 2026070800) {
+        // Drop the empty-string defaults; both fields are always set by the code.
+        $table = new xmldb_table('groupassign');
+        $field = new xmldb_field('submissionfiletypes', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, null, 'maxbytes');
+        if ($dbman->field_exists($table, $field)) {
+            $dbman->change_field_default($table, $field);
+        }
+        $field = new xmldb_field('groupnameprefix', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, null, 'numgroups');
+        if ($dbman->field_exists($table, $field)) {
+            $dbman->change_field_default($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2026070800, 'groupassign');
+    }
+
     return true;
 }

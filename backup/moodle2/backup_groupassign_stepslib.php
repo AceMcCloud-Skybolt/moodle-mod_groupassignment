@@ -138,10 +138,10 @@ class backup_groupassign_activity_structure_step extends backup_activity_structu
         }
 
         if ($userinfo && $groupinfo) {
-            $submission->set_source_table('groupassign_submissions', ['groupassignid' => '../../id']);
-            $grade->set_source_table('groupassign_grades', ['groupassignid' => '../../id']);
-            $membergrade->set_source_table('groupassign_membergrades', ['groupassignid' => '../../id']);
-            $peerreview->set_source_table('groupassign_peerreviews', ['groupassignid' => '../../id']);
+            $submission->set_source_table('groupassign_submissions', ['groupassignid' => backup::VAR_PARENTID]);
+            $grade->set_source_table('groupassign_grades', ['groupassignid' => backup::VAR_PARENTID]);
+            $membergrade->set_source_table('groupassign_membergrades', ['groupassignid' => backup::VAR_PARENTID]);
+            $peerreview->set_source_table('groupassign_peerreviews', ['groupassignid' => backup::VAR_PARENTID]);
         }
 
         $groupassign->annotate_ids('grouping', 'groupingid');

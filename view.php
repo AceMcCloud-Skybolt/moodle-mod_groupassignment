@@ -4,9 +4,7 @@
 require_once(__DIR__ . '/../../config.php');
 require_once($CFG->dirroot . '/mod/groupassign/lib.php');
 require_once($CFG->dirroot . '/group/lib.php');
-require_once($CFG->dirroot . '/mod/groupassign/classes/form/submission_form.php');
-require_once($CFG->dirroot . '/mod/groupassign/classes/form/grade_form.php');
-require_once($CFG->dirroot . '/mod/groupassign/classes/form/peer_review_form.php');
+require_once($CFG->libdir . '/formslib.php');
 
 $id = required_param('id', PARAM_INT);
 $action = optional_param('action', 'view', PARAM_ALPHA);
