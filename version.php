@@ -25,8 +25,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'mod_groupassign';
-$plugin->version = 2026070800;
+$plugin->version = 2026070801;
 $plugin->requires = 2024100700;
 $plugin->supported = [405, 501];
 $plugin->maturity = MATURITY_ALPHA;
-$plugin->release = '0.1.13';
+$plugin->release = '0.1.14';
