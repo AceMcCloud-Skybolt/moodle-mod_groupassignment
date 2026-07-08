@@ -1,9 +1,35 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-defined('MOODLE_INTERNAL') || die();
+/**
+ * Restore groupassign stepslib for mod_groupassign.
+ *
+ * @package    mod_groupassign
+ * @copyright  2026 Matthew Darch <matthew.darch.1up@gmail.com>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
+/**
+ * Restore groupassign activity structure step.
+ */
 class restore_groupassign_activity_structure_step extends restore_activity_structure_step {
-
+    /**
+     * Define structure.
+     * @return mixed
+     */
     protected function define_structure() {
         $paths = [
             new restore_path_element('groupassign', '/activity/groupassign'),
@@ -12,18 +38,30 @@ class restore_groupassign_activity_structure_step extends restore_activity_struc
         ];
 
         if ($this->get_setting_value('userinfo')) {
-            $paths[] = new restore_path_element('groupassign_submission',
-                '/activity/groupassign/submissions/submission');
+            $paths[] = new restore_path_element(
+                'groupassign_submission',
+                '/activity/groupassign/submissions/submission'
+            );
             $paths[] = new restore_path_element('groupassign_grade', '/activity/groupassign/grades/grade');
-            $paths[] = new restore_path_element('groupassign_membergrade',
-                '/activity/groupassign/membergrades/membergrade');
-            $paths[] = new restore_path_element('groupassign_peerreview',
-                '/activity/groupassign/peerreviews/peerreview');
+            $paths[] = new restore_path_element(
+                'groupassign_membergrade',
+                '/activity/groupassign/membergrades/membergrade'
+            );
+            $paths[] = new restore_path_element(
+                'groupassign_peerreview',
+                '/activity/groupassign/peerreviews/peerreview'
+            );
         }
 
         return $this->prepare_activity_structure($paths);
     }
 
+    /**
+     * Process groupassign.
+     *
+     * @param mixed $data
+     * @return mixed
+     */
     protected function process_groupassign($data) {
         global $DB;
 
@@ -59,6 +97,11 @@ class restore_groupassign_activity_structure_step extends restore_activity_struc
         $this->apply_activity_instance($newitemid);
     }
 
+    /**
+     * Legacy groupassign fields.
+     *
+     * @return array
+     */
     private function legacy_groupassign_fields(): array {
         return [
             'timelimit',
@@ -82,6 +125,12 @@ class restore_groupassign_activity_structure_step extends restore_activity_struc
         ];
     }
 
+    /**
+     * Process groupassign group.
+     *
+     * @param mixed $data
+     * @return mixed
+     */
     protected function process_groupassign_group($data) {
         global $DB;
 
@@ -104,6 +153,12 @@ class restore_groupassign_activity_structure_step extends restore_activity_struc
         $this->set_mapping('groupassign_group', $oldid, $newitemid);
     }
 
+    /**
+     * Process groupassign criterion.
+     *
+     * @param mixed $data
+     * @return mixed
+     */
     protected function process_groupassign_criterion($data) {
         global $DB;
 
@@ -115,6 +170,12 @@ class restore_groupassign_activity_structure_step extends restore_activity_struc
         $this->set_mapping('groupassign_criterion', $oldid, $newitemid);
     }
 
+    /**
+     * Process groupassign submission.
+     *
+     * @param mixed $data
+     * @return mixed
+     */
     protected function process_groupassign_submission($data) {
         global $DB;
 
@@ -131,6 +192,12 @@ class restore_groupassign_activity_structure_step extends restore_activity_struc
         $this->set_mapping('groupassign_submission', $oldid, $newitemid, true);
     }
 
+    /**
+     * Process groupassign grade.
+     *
+     * @param mixed $data
+     * @return mixed
+     */
     protected function process_groupassign_grade($data) {
         global $DB;
 
@@ -147,6 +214,12 @@ class restore_groupassign_activity_structure_step extends restore_activity_struc
         $this->set_mapping('groupassign_grade', $oldid, $newitemid);
     }
 
+    /**
+     * Process groupassign membergrade.
+     *
+     * @param mixed $data
+     * @return mixed
+     */
     protected function process_groupassign_membergrade($data) {
         global $DB;
 
@@ -164,6 +237,12 @@ class restore_groupassign_activity_structure_step extends restore_activity_struc
         $this->set_mapping('groupassign_membergrade', $oldid, $newitemid);
     }
 
+    /**
+     * Process groupassign peerreview.
+     *
+     * @param mixed $data
+     * @return mixed
+     */
     protected function process_groupassign_peerreview($data) {
         global $DB;
 
@@ -182,6 +261,10 @@ class restore_groupassign_activity_structure_step extends restore_activity_struc
         $this->set_mapping('groupassign_peerreview', $oldid, $newitemid);
     }
 
+    /**
+     * After execute.
+     * @return mixed
+     */
     protected function after_execute() {
         $this->add_related_files('mod_groupassign', 'introattachment', null);
         $this->add_related_files('mod_groupassign', 'activityattachment', null);

@@ -1,8 +1,33 @@
 <?php
 // This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-defined('MOODLE_INTERNAL') || die();
+/**
+ * Upgrade for mod_groupassign.
+ *
+ * @package    mod_groupassign
+ * @copyright  2026 Matthew Darch <matthew.darch.1up@gmail.com>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
+/**
+ * Upgrade.
+ *
+ * @param mixed $oldversion
+ * @return mixed
+ */
 function xmldb_groupassign_upgrade($oldversion) {
     global $DB, $CFG;
 
@@ -173,8 +198,11 @@ function xmldb_groupassign_upgrade($oldversion) {
             $reviewtable->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
             $reviewtable->add_key('groupassignid', XMLDB_KEY_FOREIGN, ['groupassignid'], 'groupassign', ['id']);
             $reviewtable->add_key('criteriaid', XMLDB_KEY_FOREIGN, ['criteriaid'], 'groupassign_peercriteria', ['id']);
-            $reviewtable->add_index('uniquepeerreview', XMLDB_INDEX_UNIQUE,
-                ['groupassignid', 'criteriaid', 'reviewerid', 'revieweeid']);
+            $reviewtable->add_index(
+                'uniquepeerreview',
+                XMLDB_INDEX_UNIQUE,
+                ['groupassignid', 'criteriaid', 'reviewerid', 'revieweeid']
+            );
             $reviewtable->add_index('groupassignid-groupid', XMLDB_INDEX_NOTUNIQUE, ['groupassignid', 'groupid']);
             $reviewtable->add_index('revieweeid', XMLDB_INDEX_NOTUNIQUE, ['revieweeid']);
             $dbman->create_table($reviewtable);
@@ -214,8 +242,16 @@ function xmldb_groupassign_upgrade($oldversion) {
             $dbman->add_field($table, $field);
         }
 
-        $field = new xmldb_field('peerrequirejustification', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0',
-            'peercomments');
+        $field = new xmldb_field(
+            'peerrequirejustification',
+            XMLDB_TYPE_INTEGER,
+            '2',
+            null,
+            XMLDB_NOTNULL,
+            null,
+            '0',
+            'peercomments'
+        );
         if (!$dbman->field_exists($table, $field)) {
             $dbman->add_field($table, $field);
         }
@@ -241,8 +277,16 @@ function xmldb_groupassign_upgrade($oldversion) {
 
     if ($oldversion < 2026053002) {
         $table = new xmldb_table('groupassign');
-        $field = new xmldb_field('completionreceivegrade', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0',
-            'peerstudentresponse');
+        $field = new xmldb_field(
+            'completionreceivegrade',
+            XMLDB_TYPE_INTEGER,
+            '2',
+            null,
+            XMLDB_NOTNULL,
+            null,
+            '0',
+            'peerstudentresponse'
+        );
         if (!$dbman->field_exists($table, $field)) {
             $dbman->add_field($table, $field);
         }
@@ -257,30 +301,110 @@ function xmldb_groupassign_upgrade($oldversion) {
             new xmldb_field('activityformat', XMLDB_TYPE_INTEGER, '4', null, XMLDB_NOTNULL, null, '1', 'activity'),
             new xmldb_field('timelimit', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'gradingduedate'),
             new xmldb_field('alwaysshowdescription', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'timelimit'),
-            new xmldb_field('submissionattachments', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0',
-                'alwaysshowdescription'),
+            new xmldb_field(
+                'submissionattachments',
+                XMLDB_TYPE_INTEGER,
+                '2',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                '0',
+                'alwaysshowdescription'
+            ),
             new xmldb_field('wordlimit', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'submissionfiletypes'),
             new xmldb_field('submissiondrafts', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'wordlimit'),
-            new xmldb_field('requiresubmissionstatement', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0',
-                'submissiondrafts'),
-            new xmldb_field('maxattempts', XMLDB_TYPE_INTEGER, '4', null, XMLDB_NOTNULL, null, '-1',
-                'requiresubmissionstatement'),
-            new xmldb_field('attemptreopenmethod', XMLDB_TYPE_CHAR, '16', null, XMLDB_NOTNULL, null, 'manual',
-                'maxattempts'),
-            new xmldb_field('sendnotifications', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '1',
-                'peerstudentresponse'),
-            new xmldb_field('sendlatenotifications', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0',
-                'sendnotifications'),
-            new xmldb_field('sendstudentnotifications', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '1',
-                'sendlatenotifications'),
-            new xmldb_field('blindmarking', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0',
-                'sendstudentnotifications'),
+            new xmldb_field(
+                'requiresubmissionstatement',
+                XMLDB_TYPE_INTEGER,
+                '2',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                '0',
+                'submissiondrafts'
+            ),
+            new xmldb_field(
+                'maxattempts',
+                XMLDB_TYPE_INTEGER,
+                '4',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                '-1',
+                'requiresubmissionstatement'
+            ),
+            new xmldb_field(
+                'attemptreopenmethod',
+                XMLDB_TYPE_CHAR,
+                '16',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                'manual',
+                'maxattempts'
+            ),
+            new xmldb_field(
+                'sendnotifications',
+                XMLDB_TYPE_INTEGER,
+                '2',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                '1',
+                'peerstudentresponse'
+            ),
+            new xmldb_field(
+                'sendlatenotifications',
+                XMLDB_TYPE_INTEGER,
+                '2',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                '0',
+                'sendnotifications'
+            ),
+            new xmldb_field(
+                'sendstudentnotifications',
+                XMLDB_TYPE_INTEGER,
+                '2',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                '1',
+                'sendlatenotifications'
+            ),
+            new xmldb_field(
+                'blindmarking',
+                XMLDB_TYPE_INTEGER,
+                '2',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                '0',
+                'sendstudentnotifications'
+            ),
             new xmldb_field('hidegrader', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'blindmarking'),
             new xmldb_field('markingworkflow', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'hidegrader'),
-            new xmldb_field('markingallocation', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0',
-                'markingworkflow'),
-            new xmldb_field('markinganonymous', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0',
-                'markingallocation'),
+            new xmldb_field(
+                'markingallocation',
+                XMLDB_TYPE_INTEGER,
+                '2',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                '0',
+                'markingworkflow'
+            ),
+            new xmldb_field(
+                'markinganonymous',
+                XMLDB_TYPE_INTEGER,
+                '2',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                '0',
+                'markingallocation'
+            ),
         ];
 
         foreach ($fields as $field) {

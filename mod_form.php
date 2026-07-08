@@ -1,13 +1,40 @@
 <?php
 // This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Mod form for mod_groupassign.
+ *
+ * @package    mod_groupassign
+ * @copyright  2026 Matthew Darch <matthew.darch.1up@gmail.com>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->dirroot . '/course/moodleform_mod.php');
 require_once($CFG->dirroot . '/mod/groupassign/lib.php');
 
+/**
+ * Mod form.
+ */
 class mod_groupassign_mod_form extends moodleform_mod {
-
+    /**
+     * Definition.
+     * @return mixed
+     */
     public function definition() {
         global $CFG, $COURSE, $PAGE;
 
@@ -42,28 +69,52 @@ class mod_groupassign_mod_form extends moodleform_mod {
 
         $mform->addElement('header', 'availability', get_string('availability', 'groupassign'));
         $mform->setExpanded('availability', true);
-        $mform->addElement('date_time_selector', 'allowsubmissionsfromdate',
-            get_string('allowsubmissionsfromdate', 'groupassign'), ['optional' => true]);
+        $mform->addElement(
+            'date_time_selector',
+            'allowsubmissionsfromdate',
+            get_string('allowsubmissionsfromdate', 'groupassign'),
+            ['optional' => true]
+        );
         $mform->addHelpButton('allowsubmissionsfromdate', 'allowsubmissionsfromdate', 'groupassign');
         $mform->addElement('date_time_selector', 'duedate', get_string('duedate', 'groupassign'), ['optional' => true]);
         $mform->addHelpButton('duedate', 'duedate', 'groupassign');
         $mform->addElement('date_time_selector', 'cutoffdate', get_string('cutoffdate', 'groupassign'), ['optional' => true]);
         $mform->addHelpButton('cutoffdate', 'cutoffdate', 'groupassign');
-        $mform->addElement('date_time_selector', 'gradingduedate',
-            get_string('gradingduedate', 'groupassign'), ['optional' => true]);
+        $mform->addElement(
+            'date_time_selector',
+            'gradingduedate',
+            get_string('gradingduedate', 'groupassign'),
+            ['optional' => true]
+        );
         $mform->addHelpButton('gradingduedate', 'gradingduedate', 'groupassign');
 
         $mform->addElement('header', 'submissiontypes', get_string('submissiontypes', 'groupassign'));
         $submissiontypegroup = [];
-        $submissiontypegroup[] = $mform->createElement('advcheckbox', 'submissiononlinetext',
-            get_string('onlinetext', 'groupassign'), '', [], [0, 1]);
-        $submissiontypegroup[] = $mform->createElement('advcheckbox', 'submissionfile',
-            get_string('filesubmissions', 'groupassign'), '', [], [0, 1]);
+        $submissiontypegroup[] = $mform->createElement(
+            'advcheckbox',
+            'submissiononlinetext',
+            get_string('onlinetext', 'groupassign'),
+            '',
+            [],
+            [0, 1]
+        );
+        $submissiontypegroup[] = $mform->createElement(
+            'advcheckbox',
+            'submissionfile',
+            get_string('filesubmissions', 'groupassign'),
+            '',
+            [],
+            [0, 1]
+        );
         $mform->addGroup($submissiontypegroup, 'submissiontypesgroup', get_string('submissiontypes', 'groupassign'), ' ', false);
         $mform->setDefault('submissiononlinetext', 1);
         $mform->setDefault('submissionfile', 1);
-        $mform->addElement('select', 'maxfiles', get_string('maxfiles', 'groupassign'),
-            array_combine(range(1, 20), range(1, 20)));
+        $mform->addElement(
+            'select',
+            'maxfiles',
+            get_string('maxfiles', 'groupassign'),
+            array_combine(range(1, 20), range(1, 20))
+        );
         $mform->setDefault('maxfiles', 5);
         $mform->hideIf('maxfiles', 'submissionfile', 'notchecked');
         $choices = get_max_upload_sizes($CFG->maxbytes, $COURSE->maxbytes, 0);
@@ -80,8 +131,11 @@ class mod_groupassign_mod_form extends moodleform_mod {
         $mform->hideIf('wordlimit', 'submissiononlinetext', 'notchecked');
 
         $mform->addElement('header', 'submissionsettings', get_string('submissionsettings', 'groupassign'));
-        $mform->addElement('selectyesno', 'requiresubmissionstatement',
-            get_string('requiresubmissionstatement', 'groupassign'));
+        $mform->addElement(
+            'selectyesno',
+            'requiresubmissionstatement',
+            get_string('requiresubmissionstatement', 'groupassign')
+        );
         $mform->addHelpButton('requiresubmissionstatement', 'requiresubmissionstatement', 'groupassign');
 
         $mform->addElement('header', 'groupsetup', get_string('groupsetup', 'groupassign'));
@@ -126,10 +180,18 @@ class mod_groupassign_mod_form extends moodleform_mod {
         $mform->setType('maxmembers', PARAM_INT);
         $mform->setDefault('maxmembers', 4);
 
-        $mform->addElement('date_time_selector', 'selectionopen',
-            get_string('selectionopen', 'groupassign'), ['optional' => true]);
-        $mform->addElement('date_time_selector', 'selectionclose',
-            get_string('selectionclose', 'groupassign'), ['optional' => true]);
+        $mform->addElement(
+            'date_time_selector',
+            'selectionopen',
+            get_string('selectionopen', 'groupassign'),
+            ['optional' => true]
+        );
+        $mform->addElement(
+            'date_time_selector',
+            'selectionclose',
+            get_string('selectionclose', 'groupassign'),
+            ['optional' => true]
+        );
 
         $mform->addElement('header', 'grouppermissions', get_string('groupformation', 'groupassign'));
         $mform->addElement('advcheckbox', 'allowstudentjoin', get_string('allowstudentjoin', 'groupassign'), '', [], [0, 1]);
@@ -141,7 +203,14 @@ class mod_groupassign_mod_form extends moodleform_mod {
         $mform->addElement('advcheckbox', 'allowstudentrename', get_string('allowstudentrename', 'groupassign'), '', [], [0, 1]);
         $mform->setDefault('allowstudentrename', 0);
         $mform->disabledIf('allowstudentrename', 'allowstudentcreate', 'notchecked');
-        $mform->addElement('advcheckbox', 'allowstudentdescription', get_string('allowstudentdescription', 'groupassign'), '', [], [0, 1]);
+        $mform->addElement(
+            'advcheckbox',
+            'allowstudentdescription',
+            get_string('allowstudentdescription', 'groupassign'),
+            '',
+            [],
+            [0, 1]
+        );
         $mform->setDefault('allowstudentdescription', 1);
         $mform->disabledIf('allowstudentdescription', 'allowstudentcreate', 'notchecked');
         $mform->addElement('advcheckbox', 'hidefullgroups', get_string('hidefullgroups', 'groupassign'), '', [], [0, 1]);
@@ -162,15 +231,25 @@ class mod_groupassign_mod_form extends moodleform_mod {
         $mform->setDefault('peercomments', 1);
         $mform->hideIf('peercomments', 'peerenabled', 'notchecked');
         $mform->addHelpButton('peercomments', 'peercomments', 'groupassign');
-        $mform->addElement('advcheckbox', 'peerrequirejustification', get_string('peerrequirejustification', 'groupassign'), '',
-            [], [0, 1]);
+        $mform->addElement(
+            'advcheckbox',
+            'peerrequirejustification',
+            get_string('peerrequirejustification', 'groupassign'),
+            '',
+            [],
+            [0, 1]
+        );
         $mform->setDefault('peerrequirejustification', 0);
         $mform->hideIf('peerrequirejustification', 'peerenabled', 'notchecked');
         $mform->disabledIf('peerrequirejustification', 'peercomments', 'notchecked');
         $mform->addHelpButton('peerrequirejustification', 'peerrequirejustification', 'groupassign');
 
-        $mform->addElement('static', 'peercriteriaintro', get_string('peercriteria', 'groupassign'),
-            get_string('peercriteria_help', 'groupassign'));
+        $mform->addElement(
+            'static',
+            'peercriteriaintro',
+            get_string('peercriteria', 'groupassign'),
+            get_string('peercriteria_help', 'groupassign')
+        );
         $ratingtypeoptions = [
             'fourlevel' => get_string('peerratingtype:fourlevel', 'groupassign'),
             'satisfactory' => get_string('peerratingtype:satisfactory', 'groupassign'),
@@ -179,51 +258,89 @@ class mod_groupassign_mod_form extends moodleform_mod {
         for ($i = 0; $i < 5; $i++) {
             $mform->addElement('hidden', "peercriteria_id[$i]");
             $mform->setType("peercriteria_id[$i]", PARAM_INT);
-            $mform->addElement('text', "peercriteria_title[$i]", get_string('peercriteria', 'groupassign') . ' ' . ($i + 1),
-                ['size' => 64]);
+            $mform->addElement(
+                'text',
+                "peercriteria_title[$i]",
+                get_string('peercriteria', 'groupassign') . ' ' . ($i + 1),
+                ['size' => 64]
+            );
             $mform->setType("peercriteria_title[$i]", PARAM_TEXT);
             $mform->hideIf("peercriteria_title[$i]", 'peerenabled', 'notchecked');
-            $mform->addElement('textarea', "peercriteria_description[$i]",
-                get_string('peercriteria_description', 'groupassign'), ['rows' => 2, 'cols' => 60]);
+            $mform->addElement(
+                'textarea',
+                "peercriteria_description[$i]",
+                get_string('peercriteria_description', 'groupassign'),
+                ['rows' => 2, 'cols' => 60]
+            );
             $mform->setType("peercriteria_description[$i]", PARAM_TEXT);
             $mform->hideIf("peercriteria_description[$i]", 'peerenabled', 'notchecked');
-            $mform->addElement('select', "peercriteria_ratingtype[$i]", get_string('peercriteria_ratingtype', 'groupassign'),
-                $ratingtypeoptions);
+            $mform->addElement(
+                'select',
+                "peercriteria_ratingtype[$i]",
+                get_string('peercriteria_ratingtype', 'groupassign'),
+                $ratingtypeoptions
+            );
             $mform->setDefault("peercriteria_ratingtype[$i]", 'fourlevel');
             $mform->hideIf("peercriteria_ratingtype[$i]", 'peerenabled', 'notchecked');
         }
 
         $mform->addElement('header', 'feedbacktypes', get_string('feedbacktypes', 'groupassign'));
-        $mform->addElement('static', 'feedbackcommentsenabled', get_string('feedbackcomments', 'groupassign'),
-            get_string('feedbackcommentsalwayson', 'groupassign'));
+        $mform->addElement(
+            'static',
+            'feedbackcommentsenabled',
+            get_string('feedbackcomments', 'groupassign'),
+            get_string('feedbackcommentsalwayson', 'groupassign')
+        );
 
         $this->standard_grading_coursemodule_elements();
         $this->standard_coursemodule_elements();
         $this->add_action_buttons();
     }
 
+    /**
+     * Data preprocessing.
+     *
+     * @param mixed $defaultvalues
+     * @return mixed
+     */
     public function data_preprocessing(&$defaultvalues) {
         global $DB;
 
         parent::data_preprocessing($defaultvalues);
 
         $draftitemid = file_get_submitted_draft_itemid('introattachments');
-        file_prepare_draft_area($draftitemid, $this->context->id, 'mod_groupassign', 'introattachment', 0,
-            ['subdirs' => 0]);
+        file_prepare_draft_area(
+            $draftitemid,
+            $this->context->id,
+            'mod_groupassign',
+            'introattachment',
+            0,
+            ['subdirs' => 0]
+        );
         $defaultvalues['introattachments'] = $draftitemid;
 
         $activitydraftitemid = file_get_submitted_draft_itemid('activityeditor');
         $defaultvalues['activityeditor'] = [
-            'text' => file_prepare_draft_area($activitydraftitemid, $this->context->id, 'mod_groupassign',
-                'activityattachment', 0, ['subdirs' => true], $defaultvalues['activity'] ?? ''),
+            'text' => file_prepare_draft_area(
+                $activitydraftitemid,
+                $this->context->id,
+                'mod_groupassign',
+                'activityattachment',
+                0,
+                ['subdirs' => true],
+                $defaultvalues['activity'] ?? ''
+            ),
             'format' => $defaultvalues['activityformat'] ?? FORMAT_HTML,
             'itemid' => $activitydraftitemid,
         ];
 
         $criteria = [];
         if (!empty($this->current->id)) {
-            $records = $DB->get_records('groupassign_peercriteria',
-                ['groupassignid' => $this->current->id, 'archived' => 0], 'sortorder ASC');
+            $records = $DB->get_records(
+                'groupassign_peercriteria',
+                ['groupassignid' => $this->current->id, 'archived' => 0],
+                'sortorder ASC'
+            );
             foreach ($records as $record) {
                 $criteria[] = [
                     'id' => $record->id,
@@ -246,26 +363,41 @@ class mod_groupassign_mod_form extends moodleform_mod {
         }
     }
 
+    /**
+     * Validation.
+     *
+     * @param mixed $data
+     * @param mixed $files
+     * @return mixed
+     */
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
 
         if ((int)$data['maxmembers'] > 0 && (int)$data['minmembers'] > (int)$data['maxmembers']) {
             $errors['minmembers'] = get_string('minmembers_error_bigger_maxmembers', 'groupassign');
         }
-        if (!empty($data['selectionopen']) && !empty($data['selectionclose'])
-                && $data['selectionopen'] >= $data['selectionclose']) {
+        if (
+            !empty($data['selectionopen']) && !empty($data['selectionclose'])
+                && $data['selectionopen'] >= $data['selectionclose']
+        ) {
             $errors['selectionclose'] = get_string('timedue_error_pre_timeavailable', 'groupassign');
         }
-        if (!empty($data['allowsubmissionsfromdate']) && !empty($data['duedate'])
-                && $data['duedate'] <= $data['allowsubmissionsfromdate']) {
+        if (
+            !empty($data['allowsubmissionsfromdate']) && !empty($data['duedate'])
+                && $data['duedate'] <= $data['allowsubmissionsfromdate']
+        ) {
             $errors['duedate'] = get_string('duedateaftersubmissionvalidation', 'groupassign');
         }
-        if (!empty($data['cutoffdate']) && !empty($data['duedate'])
-                && $data['cutoffdate'] < $data['duedate']) {
+        if (
+            !empty($data['cutoffdate']) && !empty($data['duedate'])
+                && $data['cutoffdate'] < $data['duedate']
+        ) {
             $errors['cutoffdate'] = get_string('cutoffdatevalidation', 'groupassign');
         }
-        if (!empty($data['allowsubmissionsfromdate']) && !empty($data['cutoffdate'])
-                && $data['cutoffdate'] < $data['allowsubmissionsfromdate']) {
+        if (
+            !empty($data['allowsubmissionsfromdate']) && !empty($data['cutoffdate'])
+                && $data['cutoffdate'] < $data['allowsubmissionsfromdate']
+        ) {
             $errors['cutoffdate'] = get_string('cutoffdatefromdatevalidation', 'groupassign');
         }
         if (!empty($data['gradingduedate'])) {
@@ -297,5 +429,4 @@ class mod_groupassign_mod_form extends moodleform_mod {
 
         return $errors;
     }
-
 }

@@ -1,5 +1,26 @@
 <?php
 // This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * View for mod_groupassign.
+ *
+ * @package    mod_groupassign
+ * @copyright  2026 Matthew Darch <matthew.darch.1up@gmail.com>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
 require_once(__DIR__ . '/../../config.php');
 require_once($CFG->dirroot . '/mod/groupassign/lib.php');
@@ -66,6 +87,12 @@ if (!empty($groupassign->submissionfiletypes)) {
     }
 }
 
+/**
+ * Selection open.
+ *
+ * @param mixed $groupassign
+ * @return bool
+ */
 function groupassign_selection_open($groupassign): bool {
     $now = time();
     if (!empty($groupassign->selectionopen) && $now < $groupassign->selectionopen) {
@@ -77,6 +104,12 @@ function groupassign_selection_open($groupassign): bool {
     return true;
 }
 
+/**
+ * Submission open.
+ *
+ * @param mixed $groupassign
+ * @return bool
+ */
 function groupassign_submission_open($groupassign): bool {
     $now = time();
     if (!empty($groupassign->allowsubmissionsfromdate) && $now < $groupassign->allowsubmissionsfromdate) {
@@ -88,6 +121,12 @@ function groupassign_submission_open($groupassign): bool {
     return true;
 }
 
+/**
+ * Submission window notice.
+ *
+ * @param mixed $groupassign
+ * @return string
+ */
 function groupassign_submission_window_notice($groupassign): string {
     $parts = [];
     if (!empty($groupassign->allowsubmissionsfromdate)) {
@@ -103,6 +142,12 @@ function groupassign_submission_window_notice($groupassign): string {
     return implode(' ', $parts);
 }
 
+/**
+ * Get groups.
+ *
+ * @param mixed $groupassign
+ * @return array
+ */
 function groupassign_get_groups($groupassign): array {
     if (empty($groupassign->groupingid)) {
         return [];
@@ -110,6 +155,13 @@ function groupassign_get_groups($groupassign): array {
     return groups_get_all_groups($groupassign->course, 0, $groupassign->groupingid, 'g.*', 'g.name ASC') ?: [];
 }
 
+/**
+ * Get my groups.
+ *
+ * @param mixed $groupassign
+ * @param int $userid
+ * @return array
+ */
 function groupassign_get_my_groups($groupassign, int $userid): array {
     if (empty($groupassign->groupingid)) {
         return [];
@@ -117,10 +169,22 @@ function groupassign_get_my_groups($groupassign, int $userid): array {
     return groups_get_all_groups($groupassign->course, $userid, $groupassign->groupingid, 'g.*', 'g.name ASC') ?: [];
 }
 
+/**
+ * Group ids.
+ *
+ * @param array $groups
+ * @return array
+ */
 function groupassign_group_ids(array $groups): array {
     return array_map(static fn($group) => (int)$group->id, $groups);
 }
 
+/**
+ * Group members map.
+ *
+ * @param array $groups
+ * @return array
+ */
 function groupassign_group_members_map(array $groups): array {
     global $DB;
 
@@ -147,6 +211,14 @@ function groupassign_group_members_map(array $groups): array {
     return $members;
 }
 
+/**
+ * Records by group.
+ *
+ * @param string $table
+ * @param int $groupassignid
+ * @param array $groups
+ * @return array
+ */
 function groupassign_records_by_group(string $table, int $groupassignid, array $groups): array {
     global $DB;
 
@@ -166,10 +238,23 @@ function groupassign_records_by_group(string $table, int $groupassignid, array $
     return $recordsbygroup;
 }
 
+/**
+ * Member count.
+ *
+ * @param int $groupid
+ * @return int
+ */
 function groupassign_member_count(int $groupid): int {
     return count(groups_get_members($groupid, 'u.id'));
 }
 
+/**
+ * Capacity label.
+ *
+ * @param mixed $groupassign
+ * @param int $count
+ * @return string
+ */
 function groupassign_capacity_label($groupassign, int $count): string {
     if (empty($groupassign->maxmembers)) {
         return (string)$count;
@@ -177,6 +262,14 @@ function groupassign_capacity_label($groupassign, int $count): string {
     return $count . ' / ' . $groupassign->maxmembers;
 }
 
+/**
+ * Group status badges.
+ *
+ * @param mixed $groupassign
+ * @param int $count
+ * @param bool $iscurrent
+ * @return string
+ */
 function groupassign_group_status_badges($groupassign, int $count, bool $iscurrent = false): string {
     $badges = [];
     if ($iscurrent) {
@@ -185,8 +278,10 @@ function groupassign_group_status_badges($groupassign, int $count, bool $iscurre
     if (!empty($groupassign->maxmembers) && $count >= $groupassign->maxmembers) {
         $badges[] = html_writer::span(get_string('groupfull', 'groupassign'), 'badge bg-secondary me-1');
     } else if (!empty($groupassign->maxmembers)) {
-        $badges[] = html_writer::span(get_string('spotsavailable', 'groupassign', $groupassign->maxmembers - $count),
-            'badge bg-info text-dark me-1');
+        $badges[] = html_writer::span(
+            get_string('spotsavailable', 'groupassign', $groupassign->maxmembers - $count),
+            'badge bg-info text-dark me-1'
+        );
     }
     if (!empty($groupassign->minmembers) && $count < $groupassign->minmembers) {
         $badges[] = html_writer::span(get_string('underfilledgroups', 'groupassign'), 'badge bg-warning text-dark me-1');
@@ -197,6 +292,12 @@ function groupassign_group_status_badges($groupassign, int $count, bool $iscurre
     return implode(' ', $badges);
 }
 
+/**
+ * Selection window notice.
+ *
+ * @param mixed $groupassign
+ * @return string
+ */
 function groupassign_selection_window_notice($groupassign): string {
     $parts = [];
     if (groupassign_selection_open($groupassign)) {
@@ -215,12 +316,25 @@ function groupassign_selection_window_notice($groupassign): string {
     return implode(' ', $parts);
 }
 
+/**
+ * Remove user from activity groups.
+ *
+ * @param mixed $groupassign
+ * @param int $userid
+ */
 function groupassign_remove_user_from_activity_groups($groupassign, int $userid): void {
     foreach (groupassign_get_my_groups($groupassign, $userid) as $group) {
         groups_remove_member($group->id, $userid);
     }
 }
 
+/**
+ * Get submission.
+ *
+ * @param mixed $groupassign
+ * @param int $groupid
+ * @return mixed
+ */
 function groupassign_get_submission($groupassign, int $groupid) {
     global $DB;
     return $DB->get_record('groupassign_submissions', [
@@ -229,10 +343,24 @@ function groupassign_get_submission($groupassign, int $groupid) {
     ]);
 }
 
+/**
+ * Group has submission.
+ *
+ * @param mixed $groupassign
+ * @param int $groupid
+ * @return bool
+ */
 function groupassign_group_has_submission($groupassign, int $groupid): bool {
     return (bool)groupassign_get_submission($groupassign, $groupid);
 }
 
+/**
+ * User has submitted group.
+ *
+ * @param mixed $groupassign
+ * @param int $userid
+ * @return bool
+ */
 function groupassign_user_has_submitted_group($groupassign, int $userid): bool {
     foreach (groupassign_get_my_groups($groupassign, $userid) as $group) {
         if (groupassign_group_has_submission($groupassign, (int)$group->id)) {
@@ -242,6 +370,16 @@ function groupassign_user_has_submitted_group($groupassign, int $userid): bool {
     return false;
 }
 
+/**
+ * Action button.
+ *
+ * @param mixed $cm
+ * @param string $action
+ * @param int $groupid
+ * @param string $label
+ * @param string $classes
+ * @return string
+ */
 function groupassign_action_button($cm, string $action, int $groupid, string $label, string $classes): string {
     $form = html_writer::start_tag('form', [
         'method' => 'post',
@@ -257,6 +395,13 @@ function groupassign_action_button($cm, string $action, int $groupid, string $la
     return $form;
 }
 
+/**
+ * Get grade.
+ *
+ * @param mixed $groupassign
+ * @param int $groupid
+ * @return mixed
+ */
 function groupassign_get_grade($groupassign, int $groupid) {
     global $DB;
     return $DB->get_record('groupassign_grades', [
@@ -265,6 +410,13 @@ function groupassign_get_grade($groupassign, int $groupid) {
     ]);
 }
 
+/**
+ * Submission late.
+ *
+ * @param mixed $groupassign
+ * @param mixed $submission
+ * @return bool
+ */
 function groupassign_submission_late($groupassign, $submission): bool {
     return $submission
         && !empty($groupassign->duedate)
@@ -272,6 +424,13 @@ function groupassign_submission_late($groupassign, $submission): bool {
         && (int)$submission->timesubmitted > (int)$groupassign->duedate;
 }
 
+/**
+ * Status label.
+ *
+ * @param mixed $submission
+ * @param mixed $groupassign
+ * @return string
+ */
 function groupassign_status_label($submission, $groupassign = null): string {
     if (!$submission) {
         return get_string('notsubmitted', 'groupassign');
@@ -285,6 +444,13 @@ function groupassign_status_label($submission, $groupassign = null): string {
     return $status;
 }
 
+/**
+ * Grade label.
+ *
+ * @param mixed $groupassign
+ * @param mixed $grade
+ * @return string
+ */
 function groupassign_grade_label($groupassign, $grade): string {
     if (!$grade || $grade->grade === null) {
         return '-';
@@ -304,14 +470,30 @@ function groupassign_grade_label($groupassign, $grade): string {
     return format_float($grade->grade, 2) . ' / ' . format_float($groupassign->grade, 2);
 }
 
+/**
+ * Submitted grade value.
+ *
+ * @param mixed $value
+ * @param mixed $groupassign
+ * @return float|null
+ */
 function groupassign_submitted_grade_value($value, $groupassign): ?float {
-    if ((int)$groupassign->grade === 0 || $value === null || $value === ''
-            || ((int)$groupassign->grade < 0 && (int)$value === 0)) {
+    if (
+        (int)$groupassign->grade === 0 || $value === null || $value === ''
+            || ((int)$groupassign->grade < 0 && (int)$value === 0)
+    ) {
         return null;
     }
     return (int)$groupassign->grade < 0 ? (float)(int)$value : (float)$value;
 }
 
+/**
+ * Render submission content.
+ *
+ * @param mixed $submission
+ * @param mixed $context
+ * @return string
+ */
 function groupassign_render_submission_content($submission, $context): string {
     if (!$submission) {
         return '-';
@@ -319,8 +501,10 @@ function groupassign_render_submission_content($submission, $context): string {
 
     $parts = [];
     if (!empty($submission->submissiontext)) {
-        $parts[] = html_writer::div(format_text($submission->submissiontext, $submission->submissionformat),
-            'groupassign-submission-text');
+        $parts[] = html_writer::div(
+            format_text($submission->submissiontext, $submission->submissionformat),
+            'groupassign-submission-text'
+        );
     }
 
     $fs = get_file_storage();
@@ -328,8 +512,14 @@ function groupassign_render_submission_content($submission, $context): string {
     if ($files) {
         $links = [];
         foreach ($files as $file) {
-            $url = moodle_url::make_pluginfile_url($context->id, 'mod_groupassign', 'submission', $submission->id,
-                $file->get_filepath(), $file->get_filename());
+            $url = moodle_url::make_pluginfile_url(
+                $context->id,
+                'mod_groupassign',
+                'submission',
+                $submission->id,
+                $file->get_filepath(),
+                $file->get_filename()
+            );
             $links[] = html_writer::link($url, s($file->get_filename()));
         }
         $parts[] = html_writer::alist($links);
@@ -338,6 +528,14 @@ function groupassign_render_submission_content($submission, $context): string {
     return $parts ? implode('', $parts) : '-';
 }
 
+/**
+ * Render activity details.
+ *
+ * @param mixed $groupassign
+ * @param mixed $cm
+ * @param mixed $context
+ * @return string
+ */
 function groupassign_render_activity_details($groupassign, $cm, $context): string {
     $parts = [];
     $intro = format_module_intro('groupassign', $groupassign, $cm->id);
@@ -357,8 +555,14 @@ function groupassign_render_activity_details($groupassign, $cm, $context): strin
     if ($files) {
         $links = [];
         foreach ($files as $file) {
-            $url = moodle_url::make_pluginfile_url($context->id, 'mod_groupassign', 'introattachment', 0,
-                $file->get_filepath(), $file->get_filename());
+            $url = moodle_url::make_pluginfile_url(
+                $context->id,
+                'mod_groupassign',
+                'introattachment',
+                0,
+                $file->get_filepath(),
+                $file->get_filename()
+            );
             $links[] = html_writer::link($url, s($file->get_filename()));
         }
         $parts[] = html_writer::div(
@@ -371,6 +575,14 @@ function groupassign_render_activity_details($groupassign, $cm, $context): strin
     return $parts ? html_writer::div(implode('', $parts), 'card card-body mb-4') : '';
 }
 
+/**
+ * Setup warnings.
+ *
+ * @param mixed $groupassign
+ * @param array $groups
+ * @param int $studentswithoutgroup
+ * @return array
+ */
 function groupassign_setup_warnings($groupassign, array $groups, int $studentswithoutgroup): array {
     $warnings = [];
     $grouping = !empty($groupassign->groupingid) ? groups_get_grouping($groupassign->groupingid) : false;
@@ -388,6 +600,12 @@ function groupassign_setup_warnings($groupassign, array $groups, int $studentswi
     return $warnings;
 }
 
+/**
+ * Peer rating options.
+ *
+ * @param string $ratingtype
+ * @return array
+ */
 function groupassign_peer_rating_options(string $ratingtype = 'fourlevel'): array {
     if ($ratingtype === 'satisfactory') {
         return [
@@ -417,6 +635,12 @@ function groupassign_peer_rating_options(string $ratingtype = 'fourlevel'): arra
     ];
 }
 
+/**
+ * Peer ratingtype map.
+ *
+ * @param mixed $groupassign
+ * @return array
+ */
 function groupassign_peer_ratingtype_map($groupassign): array {
     global $DB;
 
@@ -428,6 +652,13 @@ function groupassign_peer_ratingtype_map($groupassign): array {
     return $ratingtypes;
 }
 
+/**
+ * Normalise peer rating.
+ *
+ * @param float $rating
+ * @param string $ratingtype
+ * @return float|null
+ */
 function groupassign_normalise_peer_rating(float $rating, string $ratingtype): ?float {
     if ($ratingtype === 'marks5') {
         $minimum = 0;
@@ -447,13 +678,30 @@ function groupassign_normalise_peer_rating(float $rating, string $ratingtype): ?
     return ($rating - $minimum) / max($maximum - $minimum, 1);
 }
 
+/**
+ * Get peercriteria.
+ *
+ * @param mixed $groupassign
+ * @return array
+ */
 function groupassign_get_peercriteria($groupassign): array {
     global $DB;
 
-    return $DB->get_records('groupassign_peercriteria',
-        ['groupassignid' => $groupassign->id, 'archived' => 0], 'sortorder ASC');
+    return $DB->get_records(
+        'groupassign_peercriteria',
+        ['groupassignid' => $groupassign->id, 'archived' => 0],
+        'sortorder ASC'
+    );
 }
 
+/**
+ * Get reviewable members.
+ *
+ * @param mixed $groupassign
+ * @param int $groupid
+ * @param int $userid
+ * @return array
+ */
 function groupassign_get_reviewable_members($groupassign, int $groupid, int $userid): array {
     $members = groups_get_members($groupid, 'u.*', 'u.lastname, u.firstname');
     if (empty($groupassign->peerselfassessment)) {
@@ -462,11 +710,27 @@ function groupassign_get_reviewable_members($groupassign, int $groupid, int $use
     return $members ?: [];
 }
 
+/**
+ * Peer review expected count.
+ *
+ * @param mixed $groupassign
+ * @param int $groupid
+ * @param int $userid
+ * @return int
+ */
 function groupassign_peer_review_expected_count($groupassign, int $groupid, int $userid): int {
     return count(groupassign_get_peercriteria($groupassign))
         * count(groupassign_get_reviewable_members($groupassign, $groupid, $userid));
 }
 
+/**
+ * Peer review completed count.
+ *
+ * @param mixed $groupassign
+ * @param int $groupid
+ * @param int $userid
+ * @return int
+ */
 function groupassign_peer_review_completed_count($groupassign, int $groupid, int $userid): int {
     global $DB;
 
@@ -477,6 +741,14 @@ function groupassign_peer_review_completed_count($groupassign, int $groupid, int
     ]);
 }
 
+/**
+ * Peer review status label.
+ *
+ * @param mixed $groupassign
+ * @param int $groupid
+ * @param int $userid
+ * @return string
+ */
 function groupassign_peer_review_status_label($groupassign, int $groupid, int $userid): string {
     $expected = groupassign_peer_review_expected_count($groupassign, $groupid, $userid);
     if (!$expected) {
@@ -492,6 +764,13 @@ function groupassign_peer_review_status_label($groupassign, int $groupid, int $u
     return get_string('peerreviewstatus:notstarted', 'groupassign') . " (0 / $expected)";
 }
 
+/**
+ * Peer review group completion label.
+ *
+ * @param mixed $groupassign
+ * @param int $groupid
+ * @return string
+ */
 function groupassign_peer_review_group_completion_label($groupassign, int $groupid): string {
     $members = groups_get_members($groupid, 'u.id');
     if (!$members) {
@@ -507,6 +786,13 @@ function groupassign_peer_review_group_completion_label($groupassign, int $group
     return $complete . ' / ' . count($members);
 }
 
+/**
+ * Peer review group flag.
+ *
+ * @param mixed $groupassign
+ * @param int $groupid
+ * @return string
+ */
 function groupassign_peer_review_group_flag($groupassign, int $groupid): string {
     global $DB;
 
@@ -518,6 +804,13 @@ function groupassign_peer_review_group_flag($groupassign, int $groupid): string 
     return groupassign_peer_review_flag_from_reviews($reviews, groupassign_peer_ratingtype_map($groupassign));
 }
 
+/**
+ * Peer review completion map.
+ *
+ * @param mixed $groupassign
+ * @param array $groups
+ * @return array
+ */
 function groupassign_peer_review_completion_map($groupassign, array $groups): array {
     global $DB;
 
@@ -545,8 +838,23 @@ function groupassign_peer_review_completion_map($groupassign, array $groups): ar
     return $completion;
 }
 
-function groupassign_peer_review_group_completion_label_cached($groupassign, int $groupid, array $members,
-        array $completion, int $criteriacount): string {
+/**
+ * Peer review group completion label cached.
+ *
+ * @param mixed $groupassign
+ * @param int $groupid
+ * @param array $members
+ * @param array $completion
+ * @param int $criteriacount
+ * @return string
+ */
+function groupassign_peer_review_group_completion_label_cached(
+    $groupassign,
+    int $groupid,
+    array $members,
+    array $completion,
+    int $criteriacount
+): string {
     if (!$members || !$criteriacount) {
         return '-';
     }
@@ -563,6 +871,13 @@ function groupassign_peer_review_group_completion_label_cached($groupassign, int
     return $complete . ' / ' . count($members);
 }
 
+/**
+ * Peer review flags map.
+ *
+ * @param mixed $groupassign
+ * @param array $groups
+ * @return array
+ */
 function groupassign_peer_review_flags_map($groupassign, array $groups): array {
     global $DB;
 
@@ -574,8 +889,11 @@ function groupassign_peer_review_flags_map($groupassign, array $groups): array {
 
     [$insql, $params] = $DB->get_in_or_equal($groupids, SQL_PARAMS_NAMED, 'groupid');
     $params['groupassignid'] = $groupassign->id;
-    $reviews = $DB->get_records_select('groupassign_peerreviews',
-        "groupassignid = :groupassignid AND groupid $insql", $params);
+    $reviews = $DB->get_records_select(
+        'groupassign_peerreviews',
+        "groupassignid = :groupassignid AND groupid $insql",
+        $params
+    );
     $ratingtypes = groupassign_peer_ratingtype_map($groupassign);
 
     $bygroup = [];
@@ -584,13 +902,22 @@ function groupassign_peer_review_flags_map($groupassign, array $groups): array {
     }
 
     foreach ($groups as $group) {
-        $flags[(int)$group->id] = groupassign_peer_review_flag_from_reviews($bygroup[(int)$group->id] ?? [],
-            $ratingtypes);
+        $flags[(int)$group->id] = groupassign_peer_review_flag_from_reviews(
+            $bygroup[(int)$group->id] ?? [],
+            $ratingtypes
+        );
     }
 
     return $flags;
 }
 
+/**
+ * Peer review flag from reviews.
+ *
+ * @param array $reviews
+ * @param array $ratingtypes
+ * @return string
+ */
 function groupassign_peer_review_flag_from_reviews(array $reviews, array $ratingtypes = []): string {
     if (!$reviews) {
         return get_string('peerflag:clear', 'groupassign');
@@ -599,8 +926,10 @@ function groupassign_peer_review_flag_from_reviews(array $reviews, array $rating
     $received = [];
     $given = [];
     foreach ($reviews as $review) {
-        $rating = groupassign_normalise_peer_rating((float)$review->rating,
-            $ratingtypes[(int)$review->criteriaid] ?? 'fourlevel');
+        $rating = groupassign_normalise_peer_rating(
+            (float)$review->rating,
+            $ratingtypes[(int)$review->criteriaid] ?? 'fourlevel'
+        );
         if ($rating === null) {
             continue;
         }
@@ -636,6 +965,14 @@ function groupassign_peer_review_flag_from_reviews(array $reviews, array $rating
     return get_string('peerflag:clear', 'groupassign');
 }
 
+/**
+ * Render dashboard section.
+ *
+ * @param string $title
+ * @param string $content
+ * @param bool $open
+ * @return string
+ */
 function groupassign_render_dashboard_section(string $title, string $content, bool $open = false): string {
     $attributes = ['class' => 'groupassign-dashboard-section mb-3'];
     if ($open) {
@@ -648,6 +985,13 @@ function groupassign_render_dashboard_section(string $title, string $content, bo
         . html_writer::end_tag('details');
 }
 
+/**
+ * Render teacher view.
+ *
+ * @param mixed $groupassign
+ * @param mixed $cm
+ * @param mixed $context
+ */
 function groupassign_render_teacher_view($groupassign, $cm, $context): void {
     global $OUTPUT;
 
@@ -662,8 +1006,10 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
             $studentgroupmemberships[$member->id] = true;
         }
     }
-    $studentswithoutgroup = count(array_filter($students,
-        static fn($student) => empty($studentgroupmemberships[$student->id])));
+    $studentswithoutgroup = count(array_filter(
+        $students,
+        static fn($student) => empty($studentgroupmemberships[$student->id])
+    ));
 
     $underfilled = 0;
     $overfull = 0;
@@ -741,8 +1087,10 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
     echo groupassign_render_dashboard_section(get_string('dashboardoverview', 'groupassign'), $overview, false);
 
     if (!$groups) {
-        echo groupassign_render_dashboard_section(get_string('groupsandmembership', 'groupassign'),
-            $OUTPUT->notification(get_string('nogroups', 'groupassign'), 'info'));
+        echo groupassign_render_dashboard_section(
+            get_string('groupsandmembership', 'groupassign'),
+            $OUTPUT->notification(get_string('nogroups', 'groupassign'), 'info')
+        );
         return;
     }
 
@@ -774,8 +1122,11 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
         $row[] = implode(', ', $status);
         $table->data[] = $row;
     }
-    echo groupassign_render_dashboard_section(get_string('groupsandmembership', 'groupassign'),
-        html_writer::table($table), false);
+    echo groupassign_render_dashboard_section(
+        get_string('groupsandmembership', 'groupassign'),
+        html_writer::table($table),
+        false
+    );
 
     $summarytable = new html_table();
     $summarytable->attributes['class'] = 'generaltable mb-3';
@@ -790,8 +1141,11 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
     $gradingcontent = html_writer::tag('h5', get_string('gradingsummary', 'groupassign'), ['class' => 'mb-3']);
     $gradingcontent .= html_writer::table($summarytable);
     $gradingcontent .= html_writer::div(
-        html_writer::link(new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id, 'action' => 'submissions']),
-            get_string('gradebutton', 'groupassign'), ['class' => 'btn btn-primary']),
+        html_writer::link(
+            new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id, 'action' => 'submissions']),
+            get_string('gradebutton', 'groupassign'),
+            ['class' => 'btn btn-primary']
+        ),
         'mt-3'
     );
     echo groupassign_render_dashboard_section(get_string('submissionsandgrading', 'groupassign'), $gradingcontent, false);
@@ -813,14 +1167,22 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
             $members = $membersbygroup[$group->id] ?? [];
             $nudgebuttons = [];
             foreach ($members as $member) {
-                $nudgebuttons[] = html_writer::link(new moodle_url('/message/index.php', ['user2' => $member->id]),
-                    get_string('nudge', 'groupassign') . ': ' . fullname($member), ['class' => 'btn btn-sm btn-outline-secondary']);
+                $nudgebuttons[] = html_writer::link(
+                    new moodle_url('/message/index.php', ['user2' => $member->id]),
+                    get_string('nudge', 'groupassign') . ': ' . fullname($member),
+                    ['class' => 'btn btn-sm btn-outline-secondary']
+                );
             }
             $peertable->data[] = [
                 format_string($group->name),
                 $members ? implode(', ', array_map('fullname', $members)) : '-',
-                groupassign_peer_review_group_completion_label_cached($groupassign, $group->id, $members,
-                    $peercompletion, $criteriacount),
+                groupassign_peer_review_group_completion_label_cached(
+                    $groupassign,
+                    $group->id,
+                    $members,
+                    $peercompletion,
+                    $criteriacount
+                ),
                 $peerflags[$group->id] ?? get_string('peerflag:clear', 'groupassign'),
                 $nudgebuttons ? implode(' ', $nudgebuttons) : '-',
             ];
@@ -832,6 +1194,13 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
     echo groupassign_render_dashboard_section(get_string('peerassessment', 'groupassign'), $peercontent, false);
 }
 
+/**
+ * Render submissions view.
+ *
+ * @param mixed $groupassign
+ * @param mixed $cm
+ * @param mixed $context
+ */
 function groupassign_render_submissions_view($groupassign, $cm, $context): void {
     global $OUTPUT;
 
@@ -877,9 +1246,17 @@ function groupassign_render_submissions_view($groupassign, $cm, $context): void 
         ['id' => 'groupassign-statusfilter', 'class' => 'custom-select']
     );
     $toolbar .= html_writer::tag('label', get_string('show'), ['for' => 'groupassign-perpage']);
-    $toolbar .= html_writer::select([10 => 10, 20 => 20, 50 => 50, 100 => 100], 'perpage', $perpage, false,
-        ['id' => 'groupassign-perpage', 'class' => 'custom-select']);
-    $toolbar .= html_writer::empty_tag('input', ['type' => 'submit', 'value' => get_string('filter'), 'class' => 'btn btn-secondary']);
+    $toolbar .= html_writer::select(
+        [10 => 10, 20 => 20, 50 => 50, 100 => 100],
+        'perpage',
+        $perpage,
+        false,
+        ['id' => 'groupassign-perpage', 'class' => 'custom-select']
+    );
+    $toolbar .= html_writer::empty_tag(
+        'input',
+        ['type' => 'submit', 'value' => get_string('filter'), 'class' => 'btn btn-secondary']
+    );
     $toolbar .= html_writer::end_div();
     $toolbar .= html_writer::end_tag('form');
     echo $toolbar;
@@ -890,7 +1267,8 @@ function groupassign_render_submissions_view($groupassign, $cm, $context): void 
         $submission = $submissionsbygroup[$group->id] ?? null;
         $grade = $gradesbygroup[$group->id] ?? null;
         foreach ($members as $member) {
-            $namematch = $search === '' || stripos(fullname($member), $search) !== false || stripos($member->email, $search) !== false;
+            $namematch = $search === '' || stripos(fullname($member), $search) !== false
+                || stripos($member->email, $search) !== false;
             $status = groupassign_status_label($submission, $groupassign);
             $statusmatch = $statusfilter === 'all'
                 || ($statusfilter === 'submitted' && (int)($submission->status ?? -1) === GROUPASSIGN_STATUS_SUBMITTED)
@@ -952,8 +1330,11 @@ function groupassign_render_submissions_view($groupassign, $cm, $context): void 
             'action' => 'grade',
             'groupid' => $group->id,
         ]), get_string('grantsubmissionextension', 'groupassign'));
-        $nudgeaction = html_writer::link(new moodle_url('/message/index.php', ['user2' => $member->id]),
-            get_string('nudge', 'groupassign'), ['class' => 'btn btn-sm btn-outline-secondary']);
+        $nudgeaction = html_writer::link(
+            new moodle_url('/message/index.php', ['user2' => $member->id]),
+            get_string('nudge', 'groupassign'),
+            ['class' => 'btn btn-sm btn-outline-secondary']
+        );
         $actionmenu = html_writer::start_tag('details', ['class' => 'groupassign-row-actions'])
             . html_writer::tag('summary', '...')
             . html_writer::div(
@@ -982,8 +1363,18 @@ function groupassign_render_submissions_view($groupassign, $cm, $context): void 
     }
 
     echo html_writer::div(
-        html_writer::checkbox('quickgrading', 1, false, get_string('quickgrading', 'groupassign'), ['disabled' => 'disabled']) . ' ' .
-        html_writer::tag('button', get_string('actions', 'groupassign'), ['class' => 'btn btn-outline-secondary btn-sm', 'type' => 'button', 'disabled' => 'disabled']),
+        html_writer::checkbox(
+            'quickgrading',
+            1,
+            false,
+            get_string('quickgrading', 'groupassign'),
+            ['disabled' => 'disabled']
+        ) . ' ' .
+        html_writer::tag(
+            'button',
+            get_string('actions', 'groupassign'),
+            ['class' => 'btn btn-outline-secondary btn-sm', 'type' => 'button', 'disabled' => 'disabled']
+        ),
         'mb-2 d-flex gap-2 align-items-center'
     );
     echo html_writer::table($table);
@@ -997,6 +1388,16 @@ function groupassign_render_submissions_view($groupassign, $cm, $context): void 
     echo $OUTPUT->paging_bar($totalrows, $page, $perpage, $pagingurl);
 }
 
+/**
+ * Prepare grade form.
+ *
+ * @param mixed $groupassign
+ * @param mixed $cm
+ * @param mixed $context
+ * @param int $groupid
+ * @param array $editoroptions
+ * @return array|null
+ */
 function groupassign_prepare_grade_form($groupassign, $cm, $context, int $groupid, array $editoroptions): ?array {
     $groups = groupassign_get_groups($groupassign);
     if (empty($groups[$groupid])) {
@@ -1044,6 +1445,16 @@ function groupassign_prepare_grade_form($groupassign, $cm, $context, int $groupi
     ];
 }
 
+/**
+ * Process grade form.
+ *
+ * @param mixed $groupassign
+ * @param mixed $cm
+ * @param mixed $context
+ * @param int $groupid
+ * @param array $editoroptions
+ * @return array|null
+ */
 function groupassign_process_grade_form($groupassign, $cm, $context, int $groupid, array $editoroptions): ?array {
     global $DB, $USER;
 
@@ -1087,8 +1498,12 @@ function groupassign_process_grade_form($groupassign, $cm, $context, int $groupi
                 'objectid' => $gradeid,
                 'other' => ['groupid' => $groupid],
             ])->trigger();
-            redirect($gradeurl, get_string('gradesaved', 'groupassign'), null,
-                \core\output\notification::NOTIFY_SUCCESS);
+            redirect(
+                $gradeurl,
+                get_string('gradesaved', 'groupassign'),
+                null,
+                \core\output\notification::NOTIFY_SUCCESS
+            );
         }
 
         foreach ($members as $member) {
@@ -1131,15 +1546,35 @@ function groupassign_process_grade_form($groupassign, $cm, $context, int $groupi
             'objectid' => $gradeid,
             'other' => ['groupid' => $groupid],
         ])->trigger();
-        redirect($gradeurl, get_string('gradesaved', 'groupassign'), null,
-            \core\output\notification::NOTIFY_SUCCESS);
+        redirect(
+            $gradeurl,
+            get_string('gradesaved', 'groupassign'),
+            null,
+            \core\output\notification::NOTIFY_SUCCESS
+        );
     }
 
     return $prepared;
 }
 
-function groupassign_render_grade_view($groupassign, $cm, $context, int $groupid, array $editoroptions,
-        ?array $prepared = null): void {
+/**
+ * Render grade view.
+ *
+ * @param mixed $groupassign
+ * @param mixed $cm
+ * @param mixed $context
+ * @param int $groupid
+ * @param array $editoroptions
+ * @param array|null $prepared
+ */
+function groupassign_render_grade_view(
+    $groupassign,
+    $cm,
+    $context,
+    int $groupid,
+    array $editoroptions,
+    ?array $prepared = null
+): void {
     global $OUTPUT;
 
     require_capability('mod/groupassign:grade', $context);
@@ -1154,8 +1589,11 @@ function groupassign_render_grade_view($groupassign, $cm, $context, int $groupid
     $members = $prepared['members'];
     $submission = $prepared['submission'];
 
-    echo html_writer::link(new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id, 'action' => 'submissions']),
-        get_string('submissions', 'groupassign'), ['class' => 'btn btn-secondary mb-3']);
+    echo html_writer::link(
+        new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id, 'action' => 'submissions']),
+        get_string('submissions', 'groupassign'),
+        ['class' => 'btn btn-secondary mb-3']
+    );
     echo $OUTPUT->heading(format_string($group->name), 3);
     echo html_writer::div(get_string('members', 'groupassign') . ': ' .
         ($members ? implode(', ', array_map('fullname', $members)) : '-'), 'mb-3');
@@ -1164,6 +1602,14 @@ function groupassign_render_grade_view($groupassign, $cm, $context, int $groupid
     $mform->display();
 }
 
+/**
+ * Prepare peer review form.
+ *
+ * @param mixed $groupassign
+ * @param mixed $cm
+ * @param mixed $context
+ * @return array|null
+ */
 function groupassign_prepare_peer_review_form($groupassign, $cm, $context): ?array {
     global $DB, $USER;
 
@@ -1188,7 +1634,7 @@ function groupassign_prepare_peer_review_form($groupassign, $cm, $context): ?arr
         'groupassign' => $groupassign,
         'criteria' => $criteria,
         'members' => $members,
-        'ratingsbycriteria' => array_reduce($criteria, static function($carry, $criterion) {
+        'ratingsbycriteria' => array_reduce($criteria, static function ($carry, $criterion) {
             $carry[$criterion->id] = groupassign_peer_rating_options($criterion->ratingtype ?? 'fourlevel');
             return $carry;
         }, []),
@@ -1214,6 +1660,14 @@ function groupassign_prepare_peer_review_form($groupassign, $cm, $context): ?arr
     ];
 }
 
+/**
+ * Process peer review form.
+ *
+ * @param mixed $groupassign
+ * @param mixed $cm
+ * @param mixed $context
+ * @return array|null
+ */
 function groupassign_process_peer_review_form($groupassign, $cm, $context): ?array {
     global $DB, $USER;
 
@@ -1263,13 +1717,25 @@ function groupassign_process_peer_review_form($groupassign, $cm, $context): ?arr
             'objectid' => $groupassign->id,
             'other' => ['groupid' => $group->id],
         ])->trigger();
-        redirect(new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id]),
-            get_string('peerreviewsaved', 'groupassign'), null, \core\output\notification::NOTIFY_SUCCESS);
+        redirect(
+            new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id]),
+            get_string('peerreviewsaved', 'groupassign'),
+            null,
+            \core\output\notification::NOTIFY_SUCCESS
+        );
     }
 
     return $prepared;
 }
 
+/**
+ * Render peer review view.
+ *
+ * @param mixed $groupassign
+ * @param mixed $cm
+ * @param mixed $context
+ * @param array|null $prepared
+ */
 function groupassign_render_peer_review_view($groupassign, $cm, $context, ?array $prepared = null): void {
     global $OUTPUT;
 
@@ -1283,14 +1749,30 @@ function groupassign_render_peer_review_view($groupassign, $cm, $context, ?array
     $mform = $prepared['mform'];
     $group = $prepared['group'];
 
-    echo html_writer::link(new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id]),
-        get_string('modulename', 'groupassign'), ['class' => 'btn btn-secondary mb-3']);
+    echo html_writer::link(
+        new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id]),
+        get_string('modulename', 'groupassign'),
+        ['class' => 'btn btn-secondary mb-3']
+    );
     echo $OUTPUT->heading(get_string('peerreview', 'groupassign'), 3);
-    echo html_writer::div(get_string('currentgroup', 'groupassign') . ': ' . format_string($group->name),
-        'alert alert-info');
+    echo html_writer::div(
+        get_string('currentgroup', 'groupassign') . ': ' . format_string($group->name),
+        'alert alert-info'
+    );
     $mform->display();
 }
 
+/**
+ * Prepare group submission form.
+ *
+ * @param mixed $groupassign
+ * @param mixed $cm
+ * @param mixed $context
+ * @param mixed $group
+ * @param mixed $editoroptions
+ * @param mixed $fileoptions
+ * @return array
+ */
 function groupassign_prepare_group_submission_form($groupassign, $cm, $context, $group, $editoroptions, $fileoptions): array {
     $submission = groupassign_get_submission($groupassign, $group->id);
     $submissionsopen = groupassign_submission_open($groupassign);
@@ -1318,6 +1800,17 @@ function groupassign_prepare_group_submission_form($groupassign, $cm, $context, 
     ];
 }
 
+/**
+ * Process group submission form.
+ *
+ * @param mixed $groupassign
+ * @param mixed $cm
+ * @param mixed $context
+ * @param mixed $group
+ * @param mixed $editoroptions
+ * @param mixed $fileoptions
+ * @return array
+ */
 function groupassign_process_group_submission_form($groupassign, $cm, $context, $group, $editoroptions, $fileoptions): array {
     global $DB, $PAGE, $USER;
 
@@ -1328,8 +1821,12 @@ function groupassign_process_group_submission_form($groupassign, $cm, $context, 
 
     if ($data = $mform->get_data()) {
         if (!$submissionsopen) {
-            redirect($PAGE->url, get_string('submissionsclosed', 'groupassign'), null,
-                \core\output\notification::NOTIFY_WARNING);
+            redirect(
+                $PAGE->url,
+                get_string('submissionsclosed', 'groupassign'),
+                null,
+                \core\output\notification::NOTIFY_WARNING
+            );
         }
         $now = time();
         $record = (object)[
@@ -1351,36 +1848,72 @@ function groupassign_process_group_submission_form($groupassign, $cm, $context, 
             $submissionid = $DB->insert_record('groupassign_submissions', $record);
         }
         if (!empty($groupassign->submissionfile)) {
-            file_save_draft_area_files($data->submissionfiles, $context->id, 'mod_groupassign', 'submission',
-                $submissionid, $fileoptions);
+            file_save_draft_area_files(
+                $data->submissionfiles,
+                $context->id,
+                'mod_groupassign',
+                'submission',
+                $submissionid,
+                $fileoptions
+            );
         }
         \mod_groupassign\event\submission_saved::create([
             'context' => $context,
             'objectid' => $submissionid,
             'other' => ['groupid' => $group->id],
         ])->trigger();
-        redirect($PAGE->url, get_string('submissionsaved', 'groupassign'), null,
-            \core\output\notification::NOTIFY_SUCCESS);
+        redirect(
+            $PAGE->url,
+            get_string('submissionsaved', 'groupassign'),
+            null,
+            \core\output\notification::NOTIFY_SUCCESS
+        );
     }
 
     return $prepared;
 }
 
-function groupassign_render_group_submission_form($groupassign, $cm, $context, $group, $editoroptions, $fileoptions,
-        ?array $prepared = null): void {
+/**
+ * Render group submission form.
+ *
+ * @param mixed $groupassign
+ * @param mixed $cm
+ * @param mixed $context
+ * @param mixed $group
+ * @param mixed $editoroptions
+ * @param mixed $fileoptions
+ * @param array|null $prepared
+ */
+function groupassign_render_group_submission_form(
+    $groupassign,
+    $cm,
+    $context,
+    $group,
+    $editoroptions,
+    $fileoptions,
+    ?array $prepared = null
+): void {
     global $OUTPUT;
 
-    $prepared = $prepared ?? groupassign_prepare_group_submission_form($groupassign, $cm, $context, $group, $editoroptions,
-        $fileoptions);
+    $prepared = $prepared ?? groupassign_prepare_group_submission_form(
+        $groupassign,
+        $cm,
+        $context,
+        $group,
+        $editoroptions,
+        $fileoptions
+    );
     $mform = $prepared['mform'];
     $submission = $prepared['submission'];
     $submissionsopen = $prepared['submissionsopen'];
 
     echo $OUTPUT->heading(get_string('submission', 'groupassign'), 3);
     if ($submission) {
-        echo html_writer::div(get_string('status', 'groupassign') . ': ' .
+        echo html_writer::div(
+            get_string('status', 'groupassign') . ': ' .
             groupassign_status_label($submission, $groupassign),
-            'alert alert-info');
+            'alert alert-info'
+        );
     }
     $notice = groupassign_submission_window_notice($groupassign);
     if ($notice !== '') {
@@ -1393,8 +1926,24 @@ function groupassign_render_group_submission_form($groupassign, $cm, $context, $
     }
 }
 
-function groupassign_render_student_view($groupassign, $cm, $context, $editoroptions, $fileoptions,
-        ?array $submissionform = null): void {
+/**
+ * Render student view.
+ *
+ * @param mixed $groupassign
+ * @param mixed $cm
+ * @param mixed $context
+ * @param mixed $editoroptions
+ * @param mixed $fileoptions
+ * @param array|null $submissionform
+ */
+function groupassign_render_student_view(
+    $groupassign,
+    $cm,
+    $context,
+    $editoroptions,
+    $fileoptions,
+    ?array $submissionform = null
+): void {
     global $OUTPUT, $USER;
 
     $groups = groupassign_get_groups($groupassign);
@@ -1405,15 +1954,24 @@ function groupassign_render_student_view($groupassign, $cm, $context, $editoropt
 
     echo groupassign_render_activity_details($groupassign, $cm, $context);
     echo $OUTPUT->heading(get_string('choosegroup', 'groupassign'), 3);
-    echo html_writer::div(groupassign_selection_window_notice($groupassign),
-        $isopen ? 'alert alert-info' : 'alert alert-warning');
+    echo html_writer::div(
+        groupassign_selection_window_notice($groupassign),
+        $isopen ? 'alert alert-info' : 'alert alert-warning'
+    );
 
     if ($mygroups) {
         $currentgroup = reset($mygroups);
         echo html_writer::div(get_string('currentgroup', 'groupassign') . ': ' .
             implode(', ', array_map(fn($group) => format_string($group->name), $mygroups)), 'alert alert-success');
-        groupassign_render_group_submission_form($groupassign, $cm, $context, $currentgroup, $editoroptions, $fileoptions,
-            $submissionform);
+        groupassign_render_group_submission_form(
+            $groupassign,
+            $cm,
+            $context,
+            $currentgroup,
+            $editoroptions,
+            $fileoptions,
+            $submissionform
+        );
         if (!empty($groupassign->peerenabled)) {
             $peerstatus = groupassign_peer_review_status_label($groupassign, $currentgroup->id, $USER->id);
             echo html_writer::div(
@@ -1458,19 +2016,28 @@ function groupassign_render_student_view($groupassign, $cm, $context, $editoropt
         }
 
         $actions = [];
-        if ($isopen && $groupassign->allowstudentjoin && !$iscurrent
-                && !$isfull && !$haslockedgroup) {
+        if (
+            $isopen && $groupassign->allowstudentjoin && !$iscurrent
+                && !$isfull && !$haslockedgroup
+        ) {
             $label = $mygroups ? get_string('switchgroup', 'groupassign') : get_string('join', 'groupassign');
             $actions[] = groupassign_action_button($cm, 'join', (int)$group->id, $label, 'btn btn-primary me-2');
         } else if ($isopen && $groupassign->allowstudentjoin && !$iscurrent && $isfull) {
             $actions[] = html_writer::span(get_string('groupfull', 'groupassign'), 'btn btn-secondary disabled me-2');
         }
         if ($isopen && $groupassign->allowstudentleave && $iscurrent && !$haslockedgroup) {
-            $actions[] = groupassign_action_button($cm, 'leave', (int)$group->id, get_string('leave', 'groupassign'),
-                'btn btn-secondary me-2');
+            $actions[] = groupassign_action_button(
+                $cm,
+                'leave',
+                (int)$group->id,
+                get_string('leave', 'groupassign'),
+                'btn btn-secondary me-2'
+            );
         } else if ($iscurrent && $haslockedgroup) {
-            $actions[] = html_writer::span(get_string('groupmembershiplocked', 'groupassign'),
-                'badge bg-light text-dark border');
+            $actions[] = html_writer::span(
+                get_string('groupmembershiplocked', 'groupassign'),
+                'badge bg-light text-dark border'
+            );
         }
         echo $actions ? html_writer::div(implode(' ', $actions), 'mt-3') : '';
         echo html_writer::end_div();
@@ -1494,7 +2061,11 @@ function groupassign_render_student_view($groupassign, $cm, $context, $editoropt
             'required' => 'required',
         ]);
         if ($groupassign->allowstudentdescription) {
-            echo html_writer::tag('label', get_string('groupdescription', 'groupassign'), ['for' => 'groupassign_groupdescription']);
+            echo html_writer::tag(
+                'label',
+                get_string('groupdescription', 'groupassign'),
+                ['for' => 'groupassign_groupdescription']
+            );
             echo html_writer::tag('textarea', '', [
                 'name' => 'groupdescription',
                 'id' => 'groupassign_groupdescription',
@@ -1524,13 +2095,21 @@ if ($action !== 'view' && $action !== 'submissions' && $action !== 'grade' && $a
         $groups = groupassign_get_groups($groupassign);
         if (isset($groups[$groupid])) {
             if (groupassign_user_has_submitted_group($groupassign, $USER->id)) {
-                redirect($PAGE->url, get_string('groupmembershiplocked', 'groupassign'), null,
-                    \core\output\notification::NOTIFY_WARNING);
+                redirect(
+                    $PAGE->url,
+                    get_string('groupmembershiplocked', 'groupassign'),
+                    null,
+                    \core\output\notification::NOTIFY_WARNING
+                );
             }
             $count = groupassign_member_count($groupid);
             if (!empty($groupassign->maxmembers) && $count >= $groupassign->maxmembers) {
-                redirect($PAGE->url, get_string('groupfull', 'groupassign'), null,
-                    \core\output\notification::NOTIFY_WARNING);
+                redirect(
+                    $PAGE->url,
+                    get_string('groupfull', 'groupassign'),
+                    null,
+                    \core\output\notification::NOTIFY_WARNING
+                );
             }
             groupassign_remove_user_from_activity_groups($groupassign, $USER->id);
             groups_add_member($groupid, $USER->id);
@@ -1545,8 +2124,12 @@ if ($action !== 'view' && $action !== 'submissions' && $action !== 'grade' && $a
         $mygroups = groupassign_get_my_groups($groupassign, $USER->id);
         if (isset($mygroups[$groupid])) {
             if (groupassign_group_has_submission($groupassign, $groupid)) {
-                redirect($PAGE->url, get_string('groupmembershiplocked', 'groupassign'), null,
-                    \core\output\notification::NOTIFY_WARNING);
+                redirect(
+                    $PAGE->url,
+                    get_string('groupmembershiplocked', 'groupassign'),
+                    null,
+                    \core\output\notification::NOTIFY_WARNING
+                );
             }
             groups_remove_member($groupid, $USER->id);
             \mod_groupassign\event\group_left::create([
@@ -1560,8 +2143,12 @@ if ($action !== 'view' && $action !== 'submissions' && $action !== 'grade' && $a
     } else if ($action === 'create' && $groupassign->allowstudentcreate) {
         if (trim($groupname) !== '') {
             if (groupassign_user_has_submitted_group($groupassign, $USER->id)) {
-                redirect($PAGE->url, get_string('groupmembershiplocked', 'groupassign'), null,
-                    \core\output\notification::NOTIFY_WARNING);
+                redirect(
+                    $PAGE->url,
+                    get_string('groupmembershiplocked', 'groupassign'),
+                    null,
+                    \core\output\notification::NOTIFY_WARNING
+                );
             }
             if (empty($groupassign->groupingid)) {
                 groupassign_sync_groups($groupassign);
@@ -1601,8 +2188,14 @@ if ($action === 'grade' && $cangrade) {
     $mygroups = groupassign_get_my_groups($groupassign, $USER->id);
     if ($mygroups) {
         $currentgroup = reset($mygroups);
-        $submissionform = groupassign_process_group_submission_form($groupassign, $cm, $context, $currentgroup,
-            $submissioneditoroptions, $fileoptions);
+        $submissionform = groupassign_process_group_submission_form(
+            $groupassign,
+            $cm,
+            $context,
+            $currentgroup,
+            $submissioneditoroptions,
+            $fileoptions
+        );
     }
 }
 

@@ -1,5 +1,26 @@
 <?php
 // This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Lib for mod_groupassign.
+ *
+ * @package    mod_groupassign
+ * @copyright  2026 Matthew Darch <matthew.darch.1up@gmail.com>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -15,6 +36,12 @@ define('GROUPASSIGN_SUFFIX_LETTERS', 'letters');
 define('GROUPASSIGN_STATUS_DRAFT', 0);
 define('GROUPASSIGN_STATUS_SUBMITTED', 1);
 
+/**
+ * Supports.
+ *
+ * @param mixed $feature
+ * @return mixed
+ */
 function groupassign_supports($feature) {
     switch ($feature) {
         case FEATURE_MOD_INTRO:
@@ -37,6 +64,13 @@ function groupassign_supports($feature) {
     }
 }
 
+/**
+ * Add instance.
+ *
+ * @param mixed $data
+ * @param mixed $mform
+ * @return mixed
+ */
 function groupassign_add_instance($data, $mform = null) {
     global $DB;
 
@@ -59,6 +93,13 @@ function groupassign_add_instance($data, $mform = null) {
     return $data->id;
 }
 
+/**
+ * Update instance.
+ *
+ * @param mixed $data
+ * @param mixed $mform
+ * @return mixed
+ */
 function groupassign_update_instance($data, $mform = null) {
     global $DB;
 
@@ -77,6 +118,12 @@ function groupassign_update_instance($data, $mform = null) {
     return true;
 }
 
+/**
+ * Delete instance.
+ *
+ * @param mixed $id
+ * @return mixed
+ */
 function groupassign_delete_instance($id) {
     global $DB;
 
@@ -101,15 +148,32 @@ function groupassign_delete_instance($id) {
     return true;
 }
 
+/**
+ * Reset course form definition.
+ *
+ * @param mixed $mform
+ */
 function groupassign_reset_course_form_definition(&$mform): void {
     $mform->addElement('header', 'groupassignheader', get_string('modulenameplural', 'groupassign'));
     $mform->addElement('static', 'groupassigndelete', get_string('delete'));
-    $mform->addElement('advcheckbox', 'reset_groupassign_submissions',
-        get_string('resetgroupassignsubmissions', 'groupassign'));
-    $mform->addElement('advcheckbox', 'reset_groupassign_memberships',
-        get_string('resetgroupassignmemberships', 'groupassign'));
+    $mform->addElement(
+        'advcheckbox',
+        'reset_groupassign_submissions',
+        get_string('resetgroupassignsubmissions', 'groupassign')
+    );
+    $mform->addElement(
+        'advcheckbox',
+        'reset_groupassign_memberships',
+        get_string('resetgroupassignmemberships', 'groupassign')
+    );
 }
 
+/**
+ * Reset course form defaults.
+ *
+ * @param mixed $course
+ * @return array
+ */
 function groupassign_reset_course_form_defaults($course): array {
     return [
         'reset_groupassign_submissions' => 1,
@@ -117,6 +181,12 @@ function groupassign_reset_course_form_defaults($course): array {
     ];
 }
 
+/**
+ * Reset userdata.
+ *
+ * @param mixed $data
+ * @return array
+ */
 function groupassign_reset_userdata($data): array {
     global $DB;
 
@@ -186,6 +256,12 @@ function groupassign_reset_userdata($data): array {
     return $status;
 }
 
+/**
+ * Get coursemodule info.
+ *
+ * @param mixed $coursemodule
+ * @return mixed
+ */
 function groupassign_get_coursemodule_info($coursemodule) {
     global $DB;
 
@@ -203,6 +279,11 @@ function groupassign_get_coursemodule_info($coursemodule) {
     return $info;
 }
 
+/**
+ * Calendar event definitions.
+ *
+ * @return array
+ */
 function groupassign_calendar_event_definitions(): array {
     return [
         'due' => [
@@ -220,6 +301,11 @@ function groupassign_calendar_event_definitions(): array {
     ];
 }
 
+/**
+ * Update calendar.
+ *
+ * @param stdClass $groupassign
+ */
 function groupassign_update_calendar(stdClass $groupassign): void {
     global $DB;
 
@@ -264,6 +350,11 @@ function groupassign_update_calendar(stdClass $groupassign): void {
     }
 }
 
+/**
+ * Delete calendar events.
+ *
+ * @param stdClass $groupassign
+ */
 function groupassign_delete_calendar_events(stdClass $groupassign): void {
     global $DB;
 
@@ -277,6 +368,13 @@ function groupassign_delete_calendar_events(stdClass $groupassign): void {
     }
 }
 
+/**
+ * Grade item update.
+ *
+ * @param stdClass $groupassign
+ * @param mixed $grades
+ * @return mixed
+ */
 function groupassign_grade_item_update(stdClass $groupassign, $grades = null) {
     $item = [
         'itemname' => clean_param($groupassign->name, PARAM_NOTAGS),
@@ -301,10 +399,23 @@ function groupassign_grade_item_update(stdClass $groupassign, $grades = null) {
     return grade_update('mod/groupassign', $groupassign->course, 'mod', 'groupassign', $groupassign->id, 0, $grades, $item);
 }
 
+/**
+ * Grading areas list.
+ *
+ * @return array
+ */
 function groupassign_grading_areas_list(): array {
     return ['submissions' => get_string('submissions', 'groupassign')];
 }
 
+/**
+ * Update grades.
+ *
+ * @param stdClass $groupassign
+ * @param mixed $userid
+ * @param mixed $nullifnone
+ * @return mixed
+ */
 function groupassign_update_grades(stdClass $groupassign, $userid = 0, $nullifnone = true) {
     global $DB;
 
@@ -335,6 +446,14 @@ function groupassign_update_grades(stdClass $groupassign, $userid = 0, $nullifno
     groupassign_grade_item_update($groupassign, $grades);
 }
 
+/**
+ * Get gradebook grades for user.
+ *
+ * @param stdClass $groupassign
+ * @param int $userid
+ * @param bool $nullifnone
+ * @return array
+ */
 function groupassign_get_gradebook_grades_for_user(stdClass $groupassign, int $userid, bool $nullifnone): array {
     global $DB;
 
@@ -343,8 +462,10 @@ function groupassign_get_gradebook_grades_for_user(stdClass $groupassign, int $u
         ? groups_get_all_groups($groupassign->course, $userid, $groupassign->groupingid, 'g.id')
         : [];
     foreach ($groups as $group) {
-        $gradegroup = $DB->get_record('groupassign_grades',
-            ['groupassignid' => $groupassign->id, 'groupid' => $group->id]);
+        $gradegroup = $DB->get_record(
+            'groupassign_grades',
+            ['groupassignid' => $groupassign->id, 'groupid' => $group->id]
+        );
         $membergrade = groupassign_get_membergrade($groupassign->id, $userid);
         if ($gradegroup || ($membergrade && (int)$membergrade->groupid === (int)$group->id)) {
             $grades[$userid] = groupassign_gradebook_grade_object($userid, $gradegroup ?: null, $membergrade);
@@ -360,6 +481,13 @@ function groupassign_get_gradebook_grades_for_user(stdClass $groupassign, int $u
     return $grades;
 }
 
+/**
+ * Get membergrade.
+ *
+ * @param int $groupassignid
+ * @param int $userid
+ * @return stdClass|null
+ */
 function groupassign_get_membergrade(int $groupassignid, int $userid): ?stdClass {
     global $DB;
 
@@ -371,6 +499,14 @@ function groupassign_get_membergrade(int $groupassignid, int $userid): ?stdClass
     return $membergrade ?: null;
 }
 
+/**
+ * Gradebook grade object.
+ *
+ * @param int $userid
+ * @param stdClass|null $gradegroup
+ * @param stdClass|null $membergrade
+ * @return stdClass
+ */
 function groupassign_gradebook_grade_object(int $userid, ?stdClass $gradegroup, ?stdClass $membergrade = null): stdClass {
     $rawgrade = $gradegroup ? $gradegroup->grade : null;
     if ($membergrade && $membergrade->grade !== null) {
@@ -402,6 +538,11 @@ function groupassign_gradebook_grade_object(int $userid, ?stdClass $gradegroup, 
     return $grade;
 }
 
+/**
+ * Normalise settings.
+ *
+ * @param stdClass $data
+ */
 function groupassign_normalise_settings(stdClass $data): void {
     if (isset($data->activity)) {
         $data->activity = (string)$data->activity;
@@ -410,8 +551,11 @@ function groupassign_normalise_settings(stdClass $data): void {
     $data->formationmode = $data->formationmode ?? GROUPASSIGN_FORMATION_SELFSELECT;
     $data->numgroups = max(0, (int)($data->numgroups ?? 0));
     $data->groupnameprefix = trim((string)($data->groupnameprefix ?? ''));
-    $data->groupnamesuffix = in_array(($data->groupnamesuffix ?? GROUPASSIGN_SUFFIX_NUMBERS),
-        [GROUPASSIGN_SUFFIX_NUMBERS, GROUPASSIGN_SUFFIX_LETTERS], true)
+    $data->groupnamesuffix = in_array(
+        ($data->groupnamesuffix ?? GROUPASSIGN_SUFFIX_NUMBERS),
+        [GROUPASSIGN_SUFFIX_NUMBERS, GROUPASSIGN_SUFFIX_LETTERS],
+        true
+    )
         ? $data->groupnamesuffix
         : GROUPASSIGN_SUFFIX_NUMBERS;
     $data->minmembers = max(0, (int)($data->minmembers ?? 0));
@@ -445,6 +589,12 @@ function groupassign_normalise_settings(stdClass $data): void {
     }
 }
 
+/**
+ * Extract editor fields.
+ *
+ * @param stdClass $data
+ * @return array
+ */
 function groupassign_extract_editor_fields(stdClass $data): array {
     $draftitems = [
         'activity' => null,
@@ -460,6 +610,12 @@ function groupassign_extract_editor_fields(stdClass $data): array {
     return $draftitems;
 }
 
+/**
+ * Save activity files.
+ *
+ * @param stdClass $groupassign
+ * @param array $draftitems
+ */
 function groupassign_save_activity_files(stdClass $groupassign, array $draftitems): void {
     if (empty($groupassign->coursemodule)) {
         return;
@@ -467,15 +623,33 @@ function groupassign_save_activity_files(stdClass $groupassign, array $draftitem
 
     $context = context_module::instance($groupassign->coursemodule);
     if (!empty($draftitems['activity'])) {
-        file_save_draft_area_files($draftitems['activity'], $context->id, 'mod_groupassign',
-            'activityattachment', 0, ['subdirs' => true]);
+        file_save_draft_area_files(
+            $draftitems['activity'],
+            $context->id,
+            'mod_groupassign',
+            'activityattachment',
+            0,
+            ['subdirs' => true]
+        );
     }
     if (!empty($draftitems['introattachments'])) {
-        file_save_draft_area_files($draftitems['introattachments'], $context->id, 'mod_groupassign',
-            'introattachment', 0, ['subdirs' => 0]);
+        file_save_draft_area_files(
+            $draftitems['introattachments'],
+            $context->id,
+            'mod_groupassign',
+            'introattachment',
+            0,
+            ['subdirs' => 0]
+        );
     }
 }
 
+/**
+ * Extract peercriteria.
+ *
+ * @param stdClass $data
+ * @return array
+ */
 function groupassign_extract_peercriteria(stdClass $data): array {
     $criteria = [];
     if (!empty($data->peercriteria_title) && is_array($data->peercriteria_title)) {
@@ -495,12 +669,21 @@ function groupassign_extract_peercriteria(stdClass $data): array {
             }
         }
     }
-    unset($data->peercriteria_id, $data->peercriteria_title, $data->peercriteria_description,
-        $data->peercriteria_ratingtype);
+    unset(
+        $data->peercriteria_id,
+        $data->peercriteria_title,
+        $data->peercriteria_description,
+        $data->peercriteria_ratingtype
+    );
 
     return $criteria ?: groupassign_default_peercriteria();
 }
 
+/**
+ * Default peercriteria.
+ *
+ * @return array
+ */
 function groupassign_default_peercriteria(): array {
     return [
         [
@@ -531,6 +714,12 @@ function groupassign_default_peercriteria(): array {
     ];
 }
 
+/**
+ * Save peercriteria.
+ *
+ * @param int $groupassignid
+ * @param array $criteria
+ */
 function groupassign_save_peercriteria(int $groupassignid, array $criteria): void {
     global $DB;
 
@@ -608,6 +797,11 @@ function groupassign_save_peercriteria(int $groupassignid, array $criteria): voi
     }
 }
 
+/**
+ * Sync groups.
+ *
+ * @param stdClass $groupassign
+ */
 function groupassign_sync_groups(stdClass $groupassign): void {
     global $DB;
 
@@ -643,6 +837,13 @@ function groupassign_sync_groups(stdClass $groupassign): void {
     }
 }
 
+/**
+ * Format group name.
+ *
+ * @param stdClass $groupassign
+ * @param int $sortorder
+ * @return string
+ */
 function groupassign_format_group_name(stdClass $groupassign, int $sortorder): string {
     $prefix = trim((string)($groupassign->groupnameprefix ?? ''));
     if ($prefix === '') {
@@ -656,6 +857,12 @@ function groupassign_format_group_name(stdClass $groupassign, int $sortorder): s
     return trim($prefix . ' ' . $suffix);
 }
 
+/**
+ * Number to letters.
+ *
+ * @param int $number
+ * @return string
+ */
 function groupassign_number_to_letters(int $number): string {
     $letters = '';
     while ($number > 0) {
@@ -666,6 +873,11 @@ function groupassign_number_to_letters(int $number): string {
     return $letters ?: 'A';
 }
 
+/**
+ * Track existing grouping.
+ *
+ * @param stdClass $groupassign
+ */
 function groupassign_track_existing_grouping(stdClass $groupassign): void {
     global $DB;
 
@@ -682,6 +894,13 @@ function groupassign_track_existing_grouping(stdClass $groupassign): void {
     }
 }
 
+/**
+ * Track group.
+ *
+ * @param int $groupassignid
+ * @param int $groupid
+ * @param int $sortorder
+ */
 function groupassign_track_group(int $groupassignid, int $groupid, int $sortorder): void {
     global $DB;
 
@@ -702,6 +921,14 @@ function groupassign_track_group(int $groupassignid, int $groupid, int $sortorde
     $DB->insert_record('groupassign_groups', $record);
 }
 
+/**
+ * Get file areas.
+ *
+ * @param mixed $course
+ * @param mixed $cm
+ * @param mixed $context
+ * @return mixed
+ */
 function groupassign_get_file_areas($course, $cm, $context) {
     return [
         'introattachment' => get_string('additionalfiles', 'groupassign'),
@@ -710,6 +937,18 @@ function groupassign_get_file_areas($course, $cm, $context) {
     ];
 }
 
+/**
+ * Pluginfile.
+ *
+ * @param mixed $course
+ * @param mixed $cm
+ * @param mixed $context
+ * @param mixed $filearea
+ * @param mixed $args
+ * @param mixed $forcedownload
+ * @param array $options
+ * @return mixed
+ */
 function groupassign_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, array $options = []) {
     global $DB, $USER;
 
@@ -784,14 +1023,28 @@ function groupassign_pluginfile($course, $cm, $context, $filearea, $args, $force
     send_stored_file($file, 0, 0, $forcedownload, $options);
 }
 
+/**
+ * Get view actions.
+ * @return mixed
+ */
 function groupassign_get_view_actions() {
     return ['view'];
 }
 
+/**
+ * Get post actions.
+ * @return mixed
+ */
 function groupassign_get_post_actions() {
     return ['join', 'leave', 'create', 'submit'];
 }
 
+/**
+ * Extend settings navigation.
+ *
+ * @param settings_navigation $settings
+ * @param navigation_node $navref
+ */
 function groupassign_extend_settings_navigation(settings_navigation $settings, navigation_node $navref): void {
     $cm = $settings->get_page()->cm;
     if (!$cm || !has_capability('mod/groupassign:grade', $cm->context)) {
