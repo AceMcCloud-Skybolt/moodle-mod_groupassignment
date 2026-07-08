@@ -40,11 +40,20 @@ $PAGE->requires->css('/mod/groupassign/styles.css');
 $canjoin = has_capability('mod/groupassign:join', $context);
 $canmanage = has_capability('mod/groupassign:managegroups', $context);
 $cangrade = has_capability('mod/groupassign:grade', $context);
-$editoroptions = [
+// Feedback editor (teachers): trust text only when trusttext is enabled and the
+// grader holds the trust capability, mirroring core assign.
+$feedbackeditoroptions = [
     'context' => $context,
     'maxfiles' => EDITOR_UNLIMITED_FILES,
     'maxbytes' => $course->maxbytes,
-    'trusttext' => true,
+    'trusttext' => trusttext_active() && has_capability('moodle/site:trustcontent', $context),
+];
+// Submission editor (students): never trusted.
+$submissioneditoroptions = [
+    'context' => $context,
+    'maxfiles' => EDITOR_UNLIMITED_FILES,
+    'maxbytes' => $course->maxbytes,
+    'trusttext' => false,
 ];
 $fileoptions = [
     'subdirs' => 0,
@@ -1593,7 +1602,7 @@ $peerreviewform = null;
 $submissionform = null;
 
 if ($action === 'grade' && $cangrade) {
-    $gradeform = groupassign_process_grade_form($groupassign, $cm, $context, $groupid, $editoroptions);
+    $gradeform = groupassign_process_grade_form($groupassign, $cm, $context, $groupid, $feedbackeditoroptions);
 } else if ($action === 'peerreview' && $canjoin && !$canmanage && !$cangrade) {
     $peerreviewform = groupassign_process_peer_review_form($groupassign, $cm, $context);
 } else if ($action === 'view' && $canjoin && !$canmanage && !$cangrade) {
@@ -1601,7 +1610,7 @@ if ($action === 'grade' && $cangrade) {
     if ($mygroups) {
         $currentgroup = reset($mygroups);
         $submissionform = groupassign_process_group_submission_form($groupassign, $cm, $context, $currentgroup,
-            $editoroptions, $fileoptions);
+            $submissioneditoroptions, $fileoptions);
     }
 }
 
@@ -1613,7 +1622,7 @@ if ($canmanage || $cangrade) {
     if ($action === 'submissions' && $cangrade) {
         groupassign_render_submissions_view($groupassign, $cm, $context);
     } else if ($action === 'grade' && $cangrade) {
-        groupassign_render_grade_view($groupassign, $cm, $context, $groupid, $editoroptions, $gradeform);
+        groupassign_render_grade_view($groupassign, $cm, $context, $groupid, $feedbackeditoroptions, $gradeform);
     } else {
         groupassign_render_teacher_view($groupassign, $cm, $context);
     }
@@ -1621,7 +1630,7 @@ if ($canmanage || $cangrade) {
     if ($action === 'peerreview') {
         groupassign_render_peer_review_view($groupassign, $cm, $context, $peerreviewform);
     } else {
-        groupassign_render_student_view($groupassign, $cm, $context, $editoroptions, $fileoptions, $submissionform);
+        groupassign_render_student_view($groupassign, $cm, $context, $submissioneditoroptions, $fileoptions, $submissionform);
     }
 }
 
