@@ -6,5 +6,6 @@ defined('MOODLE_INTERNAL') || die();
 $plugin->component = 'mod_groupassign';
 $plugin->version = 2026061606;
 $plugin->requires = 2024100700;
+$plugin->supported = [405, 501];
 $plugin->maturity = MATURITY_ALPHA;
 $plugin->release = '0.1.13';

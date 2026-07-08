@@ -93,14 +93,14 @@ function groupassign_submission_open($groupassign): bool {
 function groupassign_submission_window_notice($groupassign): string {
     $parts = [];
     if (!empty($groupassign->allowsubmissionsfromdate)) {
-        $parts[] = get_string('allowsubmissionsfromdate', 'assign') . ': ' .
+        $parts[] = get_string('allowsubmissionsfromdate', 'groupassign') . ': ' .
             userdate($groupassign->allowsubmissionsfromdate);
     }
     if (!empty($groupassign->duedate)) {
-        $parts[] = get_string('duedate', 'assign') . ': ' . userdate($groupassign->duedate);
+        $parts[] = get_string('duedate', 'groupassign') . ': ' . userdate($groupassign->duedate);
     }
     if (!empty($groupassign->cutoffdate)) {
-        $parts[] = get_string('cutoffdate', 'assign') . ': ' . userdate($groupassign->cutoffdate);
+        $parts[] = get_string('cutoffdate', 'groupassign') . ': ' . userdate($groupassign->cutoffdate);
     }
     return implode(' ', $parts);
 }
@@ -789,7 +789,7 @@ function groupassign_render_teacher_view($groupassign, $cm, $context): void {
     ];
     $summarytable->data[] = [count($students), $submitted, $needsgrading, $graded];
 
-    $gradingcontent = html_writer::tag('h5', get_string('gradingsummary', 'assign'), ['class' => 'mb-3']);
+    $gradingcontent = html_writer::tag('h5', get_string('gradingsummary', 'groupassign'), ['class' => 'mb-3']);
     $gradingcontent .= html_writer::table($summarytable);
     $gradingcontent .= html_writer::div(
         html_writer::link(new moodle_url('/mod/groupassign/view.php', ['id' => $cm->id, 'action' => 'submissions']),
@@ -924,10 +924,10 @@ function groupassign_render_submissions_view($groupassign, $cm, $context): void 
         get_string('group'),
         get_string('status', 'groupassign'),
         get_string('grade', 'groupassign'),
-        get_string('timemodified', 'assign') . ' (' . get_string('submission', 'groupassign') . ')',
+        get_string('timemodified', 'groupassign') . ' (' . get_string('submission', 'groupassign') . ')',
         get_string('submissionfiles', 'groupassign'),
         get_string('submissioncomments', 'groupassign'),
-        get_string('timemodified', 'assign') . ' (' . get_string('feedback') . ')',
+        get_string('timemodified', 'groupassign') . ' (' . get_string('feedback') . ')',
         get_string('feedbackcomments', 'groupassign'),
         get_string('grade', 'groupassign'),
         get_string('actions', 'groupassign'),

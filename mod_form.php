@@ -15,7 +15,7 @@ class mod_groupassign_mod_form extends moodleform_mod {
         $PAGE->requires->css('/mod/groupassign/styles.css');
 
         $mform->addElement('header', 'general', get_string('general', 'form'));
-        $mform->addElement('text', 'name', get_string('assignmentname', 'assign'), ['size' => '64']);
+        $mform->addElement('text', 'name', get_string('assignmentname', 'groupassign'), ['size' => '64']);
         if (!empty($CFG->formatstringstriptags)) {
             $mform->setType('name', PARAM_TEXT);
         } else {
@@ -23,66 +23,66 @@ class mod_groupassign_mod_form extends moodleform_mod {
         }
         $mform->addRule('name', null, 'required', null, 'client');
         $mform->addRule('name', get_string('maximumchars', '', 1333), 'maxlength', 1333, 'client');
-        $this->standard_intro_elements(get_string('description', 'assign'));
+        $this->standard_intro_elements(get_string('description', 'groupassign'));
 
-        $mform->addElement('editor', 'activityeditor', get_string('activityeditor', 'assign'), ['rows' => 10], [
+        $mform->addElement('editor', 'activityeditor', get_string('activityinstructions', 'groupassign'), ['rows' => 10], [
             'maxfiles' => EDITOR_UNLIMITED_FILES,
             'noclean' => true,
             'context' => $this->context,
             'subdirs' => true,
         ]);
-        $mform->addHelpButton('activityeditor', 'activityeditor', 'assign');
+        $mform->addHelpButton('activityeditor', 'activityinstructions', 'groupassign');
         $mform->setType('activityeditor', PARAM_RAW);
 
-        $mform->addElement('filemanager', 'introattachments', get_string('introattachments', 'assign'), null, [
+        $mform->addElement('filemanager', 'introattachments', get_string('additionalfiles', 'groupassign'), null, [
             'subdirs' => 0,
             'maxbytes' => $COURSE->maxbytes,
         ]);
-        $mform->addHelpButton('introattachments', 'introattachments', 'assign');
+        $mform->addHelpButton('introattachments', 'additionalfiles', 'groupassign');
 
-        $mform->addElement('header', 'availability', get_string('availability', 'assign'));
+        $mform->addElement('header', 'availability', get_string('availability', 'groupassign'));
         $mform->setExpanded('availability', true);
         $mform->addElement('date_time_selector', 'allowsubmissionsfromdate',
-            get_string('allowsubmissionsfromdate', 'assign'), ['optional' => true]);
-        $mform->addHelpButton('allowsubmissionsfromdate', 'allowsubmissionsfromdate', 'assign');
-        $mform->addElement('date_time_selector', 'duedate', get_string('duedate', 'assign'), ['optional' => true]);
-        $mform->addHelpButton('duedate', 'duedate', 'assign');
-        $mform->addElement('date_time_selector', 'cutoffdate', get_string('cutoffdate', 'assign'), ['optional' => true]);
-        $mform->addHelpButton('cutoffdate', 'cutoffdate', 'assign');
+            get_string('allowsubmissionsfromdate', 'groupassign'), ['optional' => true]);
+        $mform->addHelpButton('allowsubmissionsfromdate', 'allowsubmissionsfromdate', 'groupassign');
+        $mform->addElement('date_time_selector', 'duedate', get_string('duedate', 'groupassign'), ['optional' => true]);
+        $mform->addHelpButton('duedate', 'duedate', 'groupassign');
+        $mform->addElement('date_time_selector', 'cutoffdate', get_string('cutoffdate', 'groupassign'), ['optional' => true]);
+        $mform->addHelpButton('cutoffdate', 'cutoffdate', 'groupassign');
         $mform->addElement('date_time_selector', 'gradingduedate',
-            get_string('gradingduedate', 'assign'), ['optional' => true]);
-        $mform->addHelpButton('gradingduedate', 'gradingduedate', 'assign');
+            get_string('gradingduedate', 'groupassign'), ['optional' => true]);
+        $mform->addHelpButton('gradingduedate', 'gradingduedate', 'groupassign');
 
-        $mform->addElement('header', 'submissiontypes', get_string('submissiontypes', 'assign'));
+        $mform->addElement('header', 'submissiontypes', get_string('submissiontypes', 'groupassign'));
         $submissiontypegroup = [];
         $submissiontypegroup[] = $mform->createElement('advcheckbox', 'submissiononlinetext',
-            get_string('onlinetext', 'assignsubmission_onlinetext'), '', [], [0, 1]);
+            get_string('onlinetext', 'groupassign'), '', [], [0, 1]);
         $submissiontypegroup[] = $mform->createElement('advcheckbox', 'submissionfile',
-            get_string('file', 'assignsubmission_file'), '', [], [0, 1]);
-        $mform->addGroup($submissiontypegroup, 'submissiontypesgroup', get_string('submissiontypes', 'assign'), ' ', false);
+            get_string('filesubmissions', 'groupassign'), '', [], [0, 1]);
+        $mform->addGroup($submissiontypegroup, 'submissiontypesgroup', get_string('submissiontypes', 'groupassign'), ' ', false);
         $mform->setDefault('submissiononlinetext', 1);
         $mform->setDefault('submissionfile', 1);
-        $mform->addElement('select', 'maxfiles', get_string('maxfiles', 'assignsubmission_file'),
+        $mform->addElement('select', 'maxfiles', get_string('maxfiles', 'groupassign'),
             array_combine(range(1, 20), range(1, 20)));
         $mform->setDefault('maxfiles', 5);
         $mform->hideIf('maxfiles', 'submissionfile', 'notchecked');
         $choices = get_max_upload_sizes($CFG->maxbytes, $COURSE->maxbytes, 0);
-        $mform->addElement('select', 'maxbytes', get_string('maximumsubmissionsize', 'assignsubmission_file'), $choices);
+        $mform->addElement('select', 'maxbytes', get_string('maximumsubmissionsize', 'groupassign'), $choices);
         $mform->setDefault('maxbytes', $COURSE->maxbytes);
         $mform->hideIf('maxbytes', 'submissionfile', 'notchecked');
         $mform->addElement('text', 'submissionfiletypes', get_string('submissionfiletypes', 'groupassign'), ['size' => 64]);
         $mform->setType('submissionfiletypes', PARAM_TEXT);
         $mform->addHelpButton('submissionfiletypes', 'submissionfiletypes', 'groupassign');
         $mform->hideIf('submissionfiletypes', 'submissionfile', 'notchecked');
-        $mform->addElement('text', 'wordlimit', get_string('wordlimit', 'assignsubmission_onlinetext'), ['size' => 8]);
+        $mform->addElement('text', 'wordlimit', get_string('wordlimit', 'groupassign'), ['size' => 8]);
         $mform->setType('wordlimit', PARAM_INT);
-        $mform->addHelpButton('wordlimit', 'wordlimit', 'assignsubmission_onlinetext');
+        $mform->addHelpButton('wordlimit', 'wordlimit', 'groupassign');
         $mform->hideIf('wordlimit', 'submissiononlinetext', 'notchecked');
 
-        $mform->addElement('header', 'submissionsettings', get_string('submissionsettings', 'assign'));
+        $mform->addElement('header', 'submissionsettings', get_string('submissionsettings', 'groupassign'));
         $mform->addElement('selectyesno', 'requiresubmissionstatement',
-            get_string('requiresubmissionstatement', 'assign'));
-        $mform->addHelpButton('requiresubmissionstatement', 'requiresubmissionstatement', 'assign');
+            get_string('requiresubmissionstatement', 'groupassign'));
+        $mform->addHelpButton('requiresubmissionstatement', 'requiresubmissionstatement', 'groupassign');
 
         $mform->addElement('header', 'groupsetup', get_string('groupsetup', 'groupassign'));
         $mform->setExpanded('groupsetup', true);
@@ -258,22 +258,22 @@ class mod_groupassign_mod_form extends moodleform_mod {
         }
         if (!empty($data['allowsubmissionsfromdate']) && !empty($data['duedate'])
                 && $data['duedate'] <= $data['allowsubmissionsfromdate']) {
-            $errors['duedate'] = get_string('duedateaftersubmissionvalidation', 'assign');
+            $errors['duedate'] = get_string('duedateaftersubmissionvalidation', 'groupassign');
         }
         if (!empty($data['cutoffdate']) && !empty($data['duedate'])
                 && $data['cutoffdate'] < $data['duedate']) {
-            $errors['cutoffdate'] = get_string('cutoffdatevalidation', 'assign');
+            $errors['cutoffdate'] = get_string('cutoffdatevalidation', 'groupassign');
         }
         if (!empty($data['allowsubmissionsfromdate']) && !empty($data['cutoffdate'])
                 && $data['cutoffdate'] < $data['allowsubmissionsfromdate']) {
-            $errors['cutoffdate'] = get_string('cutoffdatefromdatevalidation', 'assign');
+            $errors['cutoffdate'] = get_string('cutoffdatefromdatevalidation', 'groupassign');
         }
         if (!empty($data['gradingduedate'])) {
             if (!empty($data['allowsubmissionsfromdate']) && $data['allowsubmissionsfromdate'] > $data['gradingduedate']) {
-                $errors['gradingduedate'] = get_string('gradingduefromdatevalidation', 'assign');
+                $errors['gradingduedate'] = get_string('gradingduefromdatevalidation', 'groupassign');
             }
             if (!empty($data['duedate']) && $data['duedate'] > $data['gradingduedate']) {
-                $errors['gradingduedate'] = get_string('gradingdueduedatevalidation', 'assign');
+                $errors['gradingduedate'] = get_string('gradingdueduedatevalidation', 'groupassign');
             }
         }
         if (!empty($data['wordlimit']) && (int)$data['wordlimit'] < 0) {

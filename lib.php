@@ -704,8 +704,8 @@ function groupassign_track_group(int $groupassignid, int $groupid, int $sortorde
 
 function groupassign_get_file_areas($course, $cm, $context) {
     return [
-        'introattachment' => get_string('introattachments', 'assign'),
-        'activityattachment' => get_string('activityeditor', 'assign'),
+        'introattachment' => get_string('additionalfiles', 'groupassign'),
+        'activityattachment' => get_string('activityinstructions', 'groupassign'),
         'submission' => get_string('submissionfiles', 'groupassign'),
     ];
 }
