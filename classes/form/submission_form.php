@@ -31,13 +31,13 @@ class submission_form extends \moodleform {
 
         if (!empty($groupassign->requiresubmissionstatement)) {
             $mform->addElement('advcheckbox', 'submissionstatement',
-                get_string('submissionstatementteamsubmission', 'assign'),
-                get_string('submissionstatementteamsubmissiondefault', 'assign'));
-            $mform->addRule('submissionstatement', get_string('submissionstatementrequired', 'assign'),
+                get_string('submissionstatementteamsubmission', 'groupassign'),
+                get_string('submissionstatementteamsubmissiondefault', 'groupassign'));
+            $mform->addRule('submissionstatement', get_string('submissionstatementrequired', 'groupassign'),
                 'required', null, 'client');
         }
 
-        $this->add_action_buttons(false, get_string('submitassignment', 'assign'));
+        $this->add_action_buttons(false, get_string('submitassignment', 'groupassign'));
     }
 
     public function validation($data, $files) {
@@ -47,14 +47,14 @@ class submission_form extends \moodleform {
         if (!empty($groupassign->wordlimit) && !empty($data['submissioneditor']['text'])) {
             $wordcount = str_word_count(strip_tags($data['submissioneditor']['text']));
             if ($wordcount > (int)$groupassign->wordlimit) {
-                $errors['submissioneditor'] = get_string('wordlimitexceeded', 'assignsubmission_onlinetext', (object)[
+                $errors['submissioneditor'] = get_string('wordlimitexceeded', 'groupassign', (object)[
                     'limit' => (int)$groupassign->wordlimit,
                     'count' => $wordcount,
                 ]);
             }
         }
         if (!empty($groupassign->requiresubmissionstatement) && empty($data['submissionstatement'])) {
-            $errors['submissionstatement'] = get_string('submissionstatementrequired', 'assign');
+            $errors['submissionstatement'] = get_string('submissionstatementrequired', 'groupassign');
         }
 
         return $errors;
