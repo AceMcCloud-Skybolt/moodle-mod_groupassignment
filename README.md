@@ -69,9 +69,18 @@ These screenshots use a synthetic local demo course and demo users only.
 
 This prototype should keep Moodle's native Assignment mental model while reducing the setup burden around Groups and Groupings. Peer/self evaluation should initially be treated as structured evidence for teachers, not an automatic grade redistribution formula.
 
+## Developer architecture
+
+- `view.php` is a thin request entry point.
+- `classes/local/workflow_manager.php` owns group, submission, availability, and grade-display services.
+- `classes/local/peer_review_manager.php` owns peer-review completion and concern-flag calculations.
+- `classes/local/form_controller.php` prepares and processes grading, submission, and peer-review forms before output.
+- `classes/output/renderer.php` owns staff and student page rendering.
+- `tests/local`, `tests/generator`, and `tests/behat` provide initial regression coverage for availability, grading values, managed group creation, peer flags, and role-based views.
+
 ## Still to harden
 
 - Gradebook scale/no-grade workflows need further developer review and smoke testing.
 - Course copy, reset, and backup/restore should be tested with realistic teaching data.
 - Notifications, extension workflows, and richer Assignment-style row actions remain deferred.
-- Automated PHPUnit/Behat tests and renderer/table refactors remain future hardening.
+- Broader PHPUnit/Behat coverage is still needed for full submission, grading, backup/restore, and course-reset journeys.
