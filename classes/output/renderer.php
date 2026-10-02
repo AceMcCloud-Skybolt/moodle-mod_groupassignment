@@ -458,7 +458,7 @@ class renderer extends \plugin_renderer_base {
             'statusfilter',
             $statusfilter,
             false,
-            ['id' => 'groupassign-statusfilter', 'class' => 'custom-select']
+            ['id' => 'groupassign-statusfilter', 'class' => 'form-select']
         );
         $toolbar .= \html_writer::tag('label', get_string('show'), ['for' => 'groupassign-perpage']);
         $toolbar .= \html_writer::select(
@@ -466,7 +466,7 @@ class renderer extends \plugin_renderer_base {
             'perpage',
             $perpage,
             false,
-            ['id' => 'groupassign-perpage', 'class' => 'custom-select']
+            ['id' => 'groupassign-perpage', 'class' => 'form-select']
         );
         $toolbar .= \html_writer::empty_tag(
             'input',

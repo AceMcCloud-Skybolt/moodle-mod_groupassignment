@@ -19,7 +19,7 @@ This is compatibility evidence, not production certification. The institution's 
 - Add GitHub Actions for Moodle 5.1 on PHP 8.2 and 8.3, including coding, PHPDoc, template and PHPUnit checks.
 - Preserve the current implementation's deliberate exclusion of advanced grading. A grading-area mapping exists, but FEATURE_ADVANCED_GRADING is false; this review does not enable an incomplete rubric workflow.
 
-No runtime or database schema change; the existing release/version is retained.
+Replace the submissions filter/page-size controls' Bootstrap 4 `custom-select` class with Bootstrap 5 `form-select`. Release 0.1.16 / version 2026100200 includes this styling correction and the regression tests. There is no database schema change.
 
 ## Acceptance before rollout
 
