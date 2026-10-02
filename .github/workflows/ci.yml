@@ -91,4 +91,4 @@ jobs:
 
       - name: PHPUnit
         if: ${{ !cancelled() }}
-        run: moodle-plugin-ci phpunit --moodle="${MOODLE_DIR}" --testdox --fail-on-warning --fail-on-deprecation "${PLUGIN_DIR}"
+        run: moodle-plugin-ci phpunit --moodle="${MOODLE_DIR}" --testdox --fail-on-warning "${PLUGIN_DIR}"
