@@ -20,6 +20,10 @@ powershell -ExecutionPolicy Bypass -File .\tools\build-package.ps1
 
 That creates `dist/groupassign.zip` with the correct top-level folder.
 
+## Moodle 5.1 upgrade testing
+
+Development testing uses Moodle **5.1.4+ (Build: 20260604)**. See [the upgrade UAT smoke-test checklist](docs/moodle-51-uat-smoke-tests.md) for the verified baseline, installation preparation, staff/student workflows and sign-off criteria.
+
 ## Concept and requirements brief
 
 For a non-code handoff explaining why this activity is needed, what problems it solves, target users, core use cases, MVP requirements, future ideas, and developer review questions, see:
