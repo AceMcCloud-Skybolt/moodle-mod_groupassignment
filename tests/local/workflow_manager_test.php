@@ -31,6 +31,62 @@ namespace mod_groupassign\local;
  */
 final class workflow_manager_test extends \advanced_testcase {
     /**
+     * The module settings form renders point grading and completion choices.
+     */
+    public function test_settings_form_renders_grading_and_completion(): void {
+        global $CFG, $COURSE, $PAGE;
+
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        require_once($CFG->dirroot . '/course/modlib.php');
+        require_once($CFG->dirroot . '/mod/groupassign/mod_form.php');
+        $course = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+        $activity = $this->getDataGenerator()->create_module('groupassign', ['course' => $course->id]);
+        $cm = get_coursemodule_from_id('groupassign', $activity->cmid, 0, false, MUST_EXIST);
+        [$cm, $context, $module, $data, $section] = get_moduleinfo_data($cm, $course);
+        $COURSE = $course;
+        $PAGE->set_course($course);
+        $PAGE->set_context($context);
+        $PAGE->set_url('/course/modedit.php', ['update' => $cm->id]);
+        $form = new \mod_groupassign_mod_form($data, $section->section, $cm, $course);
+        $form->set_data($data);
+        $html = $form->render();
+
+        $this->assertStringContainsString('completionusegrade', $html);
+        $this->assertStringContainsString('grade[modgrade_point]', $html);
+        $this->assertFalse(groupassign_supports(FEATURE_ADVANCED_GRADING));
+        $this->assertDoesNotMatchRegularExpression('/\[\[[^\]]+\]\]/', $html);
+    }
+
+    /**
+     * The teacher dashboard resolves its renderer and template strings.
+     */
+    public function test_teacher_dashboard_renders(): void {
+        global $PAGE;
+
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        $course = $this->getDataGenerator()->create_course();
+        $activity = $this->getDataGenerator()->create_module('groupassign', ['course' => $course->id]);
+        $cm = get_coursemodule_from_id('groupassign', $activity->cmid, 0, false, MUST_EXIST);
+        $context = \context_module::instance($cm->id);
+        $PAGE->set_course($course);
+        $PAGE->set_context($context);
+        $PAGE->set_url('/mod/groupassign/view.php', ['id' => $cm->id]);
+        $renderer = $PAGE->get_renderer('mod_groupassign');
+        ob_start();
+        try {
+            $renderer->render_teacher_view($activity, $cm, $context);
+            $html = ob_get_contents();
+        } finally {
+            ob_end_clean();
+        }
+
+        $this->assertStringContainsString(get_string('groupmanagementsummary', 'groupassign'), $html);
+        $this->assertDoesNotMatchRegularExpression('/\[\[[^\]]+\]\]/', $html);
+    }
+
+    /**
      * Selection and submission windows honour their configured boundaries.
      */
     public function test_availability_windows(): void {

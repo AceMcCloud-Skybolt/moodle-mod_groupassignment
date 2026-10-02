@@ -6,7 +6,7 @@ Checked on 2 October 2026: the local sandbox code and database are Moodle **5.1.
 
 These results establish the development baseline. Run the checklist below on the university's actual upgrade environment, with its theme, permissions, file storage and other plugins. Initial Behat scenarios exist; they have not been run locally.
 
-On 2 October, a fresh PHPUnit run was blocked by the local test-database configuration (`Can not use database for testing, try different prefix`). The August passing results remain the last completed run. Two additional local settings/dashboard tests and a draft CI workflow are awaiting validation and are excluded from this documentation release.
+An independent run on 2 October in the isolated Moodle 5.1 staging installation passed **8 tests and 28 assertions**, including the additional settings/dashboard tests. See [the compatibility review](moodle-5.1-review-2026-10-02.md) for scope and remaining acceptance checks.
 
 ## Installation and test preparation
 
@@ -34,7 +34,7 @@ Record Pass / Fail / Not tested, tester, date and evidence for each ID. A checkb
 | U10 | Give one member an individual grade and explanation, then regrade the group. | Individual result and explanation persist as intended; other members retain the group grade. |
 | U11 | Hide/release the grade item in Gradebook; view as students. Manually override a grade in Gradebook and save group grading again. | Visibility follows Gradebook; an explicit Gradebook override is preserved. |
 | U12 | Create separate scale-graded and no-grade activities; save feedback and inspect Gradebook. | Scale choices map correctly; no-grade feedback works without an invalid numeric maximum. |
-| U13 | Configure a rubric and marking guide in separate activities; grade and reopen each. | Advanced grading renders and persists, and the calculated grade reaches Gradebook. |
+| U13 | Inspect grading options when creating and editing an activity. | Supported points, scale and no-grade choices are usable; rubric/marking-guide configuration is unavailable because advanced grading is deliberately disabled. |
 | U14 | Students complete peer/self reviews, including required justification. Check teacher completion counts and concern flags. | Required fields are enforced; reviews persist; counts are correct; flags support follow-up without automatically adjusting grades. |
 | U15 | Save activity settings after reviews exist. Remove a criterion that has reviews. | Existing reviews are retained; criteria are updated in place; removed reviewed criteria are archived without orphaning data. |
 | U16 | Use the submissions search, status filters and pagination with multiple groups. | Results and counts agree; grading opens the selected group; no errors or unusably slow pages. |
@@ -48,4 +48,4 @@ Record Pass / Fail / Not tested, tester, date and evidence for each ID. A checkb
 
 Block pilot use for lost submissions/reviews, incorrect grades, cross-group disclosure, failed installation, or broken backup/restore. Assign an owner and retest every failure before sign-off. Record untested cases explicitly.
 
-The activity remains an alpha prototype. Notifications, extensions and richer Assignment-style row actions are documented as deferred; do not assume native Assignment parity. This checklist is a UAT aid, not evidence that all journeys have already passed.
+The activity remains an alpha prototype. Notifications, extensions, advanced grading and richer Assignment-style row actions are documented as deferred; do not assume native Assignment parity. This checklist is a UAT aid, not evidence that all journeys have already passed.

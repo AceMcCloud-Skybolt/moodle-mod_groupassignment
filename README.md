@@ -1,5 +1,7 @@
 # Group assignment prototype
 
+Moodle 5.1 readiness: [2 October 2026 compatibility review and rollout checks](docs/moodle-5.1-review-2026-10-02.md).
+
 `mod_groupassign` is an early Moodle activity prototype for group assignments that combine group formation, group submission, peer/self evaluation, and teacher-controlled grade adjustment in one activity.
 
 ## Installation
